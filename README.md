@@ -1,81 +1,112 @@
 # HandyWorks Website
 
-Professional chiropractic office management software website.
+Official website for HandyWorks Chiropractic Office Management Software.
+
+**Live Site:** https://handyworks.com/
 
 ## Overview
 
-This is a static HTML website for HandyWorks, migrated from WordPress to a modern, maintainable static site structure. The site is hosted on GitHub Pages.
+Static HTML website hosted on GitHub Pages. Migrated from WordPress in January 2025.
 
-## Site Structure
+## Features
+
+- **Blog Homepage**: 61 blog posts (2015-2025) with expandable entries
+- **Newsletter Archive**: 43 newsletters (1992-2017)
+- **Software Downloads**: Upgrade files and installation packages in `public/` directory
+- **Desktop Software Integration**: `LatestVersion.txt` for automatic update checking
+- **SEO Optimized**: Meta tags, sitemap.xml, robots.txt
+- **Email Forwarding**: steve@handyworks.com via Namecheap
+
+## Directory Structure
 
 ```
 handyworks-website/
-├── blog/              # Blog posts (HTML)
-├── newsletters/       # Newsletter PDFs
-├── downloads/         # Software downloads
-├── images/            # Images (organized)
-├── css/              # Stylesheets
-├── js/               # JavaScript
-└── scripts/          # Utility scripts
+├── index.html              # Blog homepage
+├── about.html              # About HandyWorks
+├── contact.html            # Contact form (Formspree)
+├── downloads.html          # Software downloads
+├── faq.html                # FAQ page
+├── features.html           # Features page
+├── legacy.html             # Legacy information
+├── newsletters.html        # Newsletter archive
+├── partners.html           # Partners page
+├── story.html              # The HandyWorks Story
+├── blog/                   # Blog posts (organized by year/month)
+├── css/                    # Stylesheets
+├── js/                     # JavaScript (config, header/footer, blog, sidebar)
+├── images/                 # Images and logos
+├── newsletters/            # Newsletter PDFs
+├── public/                 # Download files (accessible via https://handyworks.com/public/)
+├── scripts/                # Maintenance scripts
+├── CNAME                   # Custom domain configuration
+├── robots.txt              # Search engine directives
+└── sitemap.xml             # Site map for SEO
 ```
+
+## Maintenance Scripts
+
+Located in `scripts/`:
+
+- **add_favicon.py**: Add favicon to HTML pages
+- **add_meta_tags.py**: Add SEO meta tags to pages
+- **clean_wordpress_content.py**: Clean WordPress HTML (for future blog posts)
+- **regenerate_blog_index.py**: Regenerate blog homepage
+- **test_site.py**: Test all links and downloads
+- **final_cleanup.py**: Remove outdated files
+
+## Technology Stack
+
+- **Hosting**: GitHub Pages
+- **DNS**: Namecheap
+- **SSL**: Automatic via GitHub Pages
+- **Email**: Namecheap email forwarding
+- **Contact Form**: Formspree
+- **Analytics**: None (privacy-focused)
+
+## DNS Configuration
+
+- **A Records** (apex domain):
+  - 185.199.108.153
+  - 185.199.109.153
+  - 185.199.110.153
+  - 185.199.111.153
+- **CNAME Record** (www subdomain):
+  - www → sbschram.github.io
 
 ## Development
 
-### Local Development
+### Local Testing
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/SBSchram/handyworks-website.git
-   cd handyworks-website
-   ```
+```bash
+# Serve locally (Python)
+python3 -m http.server 8000
 
-2. Serve locally (using Python):
-   ```bash
-   python3 -m http.server 8000
-   ```
-   Then open http://localhost:8000
+# Visit http://localhost:8000
+```
 
-### Building
+### Adding a New Blog Post
 
-The site uses a simple build system (`build.js`) for generating pages with consistent header/footer.
+1. Create HTML file in `blog/YYYY/MM/post-slug.html`
+2. Use existing post as template
+3. Run `python3 scripts/regenerate_blog_index.py` to update homepage
+4. Commit and push to GitHub
 
-## Deployment
+### Deployment
 
-The site is automatically deployed to GitHub Pages when changes are pushed to the `main` branch.
+All changes pushed to `main` branch are automatically deployed to GitHub Pages.
 
-### GitHub Pages URL
-- Test URL: `https://sbschram.github.io/handyworks-website/`
-- Production URL: `https://www.handyworks.com` (after DNS migration)
+```bash
+git add .
+git commit -m "Description of changes"
+git push
+```
 
-### DNS Migration
+## Contact
 
-**Current Status:** Testing on GitHub Pages (old WordPress site still live)
-
-**Migration Steps:**
-1. ✅ Site deployed to GitHub Pages
-2. ⏳ Test on GitHub Pages URL
-3. ⏳ Update DNS CNAME record to point to GitHub Pages
-4. ⏳ Configure custom domain in GitHub Pages settings
-5. ⏳ Verify SSL certificate
-6. ⏳ Monitor for issues
-
-## Content
-
-- **Blog Posts:** 61 posts (2006-2025)
-- **Pages:** 14 pages
-- **Newsletters:** 43 PDF files
-- **Downloads:** Software updates and installation files
-
-## Scripts
-
-Utility scripts in `scripts/`:
-- `parse_wordpress_export.py` - Extract content from WordPress XML
-- `organize_assets.py` - Organize files into proper structure
-- `generate_html.py` - Generate HTML from extracted content
-- `create_newsletter_archive.py` - Create newsletter archive page
-- `cleanup_directory.py` - Remove unnecessary files
+- **Website**: https://handyworks.com/
+- **Email**: steve@handyworks.com
+- **Support**: Via contact form
 
 ## License
 
-Copyright © 2025 HandyWorks Software. All rights reserved.
-
+© 2025 HandyWorks Software. All rights reserved.
