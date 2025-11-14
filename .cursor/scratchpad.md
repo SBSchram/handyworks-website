@@ -708,6 +708,8 @@ handyworks-website/
 
 **Planner (January 29, 2025):** Email forwarding verified working (steve@handyworks.com → sbschram@gmail.com). HandyWorks website migration is COMPLETE and SUCCESSFUL!
 
+**Planner (January 29, 2025):** Switched to apex domain (handyworks.com without www) to match JetLagPro setup. DNS check successful. Added favicon to all pages. Migration fully complete!
+
 ---
 
 ## Key Challenges and Analysis
