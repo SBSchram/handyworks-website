@@ -1,48 +1,29 @@
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
+# Sensitive Data Files - DO NOT COMMIT
+# These contain user personal information (names, emails, addresses, etc.)
 
-# Editor directories and files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# User data files
+hwsales.csv
+scripts/handyworks_data.tsv
+scripts/*.tsv
+scripts/*.csv
 
-# Temporary files
-*.tmp
-*.log
-*.cache
+# API Keys and Secrets (if added to config.js)
+# Note: API keys should be in environment variables, not in code
 
-# WordPress backup (already extracted)
-tmb/
-tmb.zip
-
-# Extracted content (Markdown - HTML versions in blog/)
-extracted_content/posts/
-extracted_content/pages/
-
-# Keep content inventory for reference
-!extracted_content/content_inventory.json
-
-# Build artifacts (if any)
-dist/
-build/
+# Node modules (if we add npm packages)
+node_modules/
+package-lock.json
 
 # Environment files
 .env
 .env.local
 
-# Node modules (if using Node.js build tools)
-node_modules/
+# OS files
+.DS_Store
+Thumbs.db
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
