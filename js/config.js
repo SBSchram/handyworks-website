@@ -30,5 +30,21 @@ window.HandyWorksConfig = {
     // Get cache busted URL for a file
     getCacheBustedUrl: function(filePath) {
         return this.cacheBust ? `${filePath}?v=${this.version}` : filePath;
+    },
+    
+    // Firebase configuration for HandyWorks Billing
+    firebase: {
+        apiKey: "AIzaSyBBEcYul9EkvhaYehpR2wBKkvi7W9s-zVo",
+        authDomain: "handyworks-billing.firebaseapp.com",
+        projectId: "handyworks-billing",
+        storageBucket: "handyworks-billing.firebasestorage.app",
+        messagingSenderId: "326712635528",
+        appId: "1:326712635528:web:5c408a30fd44de2f9e2f3d",
+        measurementId: "G-3ZDBCGXH4D"
+    },
+    
+    // Stripe configuration (Test Mode)
+    stripe: {
+        publishableKey: "pk_test_51SUrHgQwduOvSBAvwzESLZuJQK7SwwkCcqWjAQaPa1oAvX0QWWEwUiGE9moXNg5yJeu5V3NLnNIGZuBlIFNvy6uE00JNXqBy2l"
     }
 };
