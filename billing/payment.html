@@ -9,6 +9,12 @@
     <script src="https://js.stripe.com/v3/"></script>
     <script src="../js/config.js?v=20250129v3"></script>
     <script src="../js/header-footer.js?v=20250129v3" defer></script>
+    <script>
+        // Ensure config is loaded before module scripts run
+        if (typeof window.HandyWorksConfig === 'undefined') {
+            console.error('HandyWorksConfig not found. Check config.js loading.');
+        }
+    </script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <style>
         .payment-container {
@@ -246,13 +252,25 @@
     
     <!-- Firebase SDK -->
     <script type="module">
+        // Wait for config to load
+        if (!window.HandyWorksConfig || !window.HandyWorksConfig.firebase) {
+            console.error('Firebase configuration not found. Make sure config.js is loaded.');
+            throw new Error('Firebase configuration missing');
+        }
+        
+        if (!window.HandyWorksConfig.stripe || !window.HandyWorksConfig.stripe.publishableKey) {
+            console.error('Stripe configuration not found. Make sure config.js is loaded.');
+            throw new Error('Stripe configuration missing');
+        }
+        
         // Import Firebase modules
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         
         // Initialize Firebase
-        const app = initializeApp(window.HandyWorksConfig.firebase);
+        const firebaseConfig = window.HandyWorksConfig.firebase;
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         

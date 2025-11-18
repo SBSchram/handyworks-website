@@ -8,6 +8,12 @@
     <link rel="stylesheet" href="../css/style.css?v=20250129v3">
     <script src="../js/config.js?v=20250129v3"></script>
     <script src="../js/header-footer.js?v=20250129v3" defer></script>
+    <script>
+        // Ensure config is loaded before module scripts run
+        if (typeof window.HandyWorksConfig === 'undefined') {
+            console.error('HandyWorksConfig not found. Check config.js loading.');
+        }
+    </script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <style>
         .billing-container {
@@ -148,100 +154,126 @@
     
     <!-- Firebase SDK -->
     <script type="module">
+        // Wait for config to be available
+        function waitForConfig() {
+            return new Promise((resolve) => {
+                if (window.HandyWorksConfig && window.HandyWorksConfig.firebase) {
+                    resolve();
+                } else {
+                    // Wait a bit and check again
+                    setTimeout(() => {
+                        if (window.HandyWorksConfig && window.HandyWorksConfig.firebase) {
+                            resolve();
+                        } else {
+                            console.error('Firebase configuration not found. Make sure config.js is loaded.');
+                            throw new Error('Firebase configuration missing');
+                        }
+                    }, 100);
+                }
+            });
+        }
+        
         // Import Firebase modules
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         
-        // Initialize Firebase
-        const app = initializeApp(window.HandyWorksConfig.firebase);
-        const auth = getAuth(app);
-        
-        // Login form handler
-        const loginForm = document.getElementById('login-form');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const loginButton = document.getElementById('login-button');
-        const errorMessage = document.getElementById('error-message');
-        const loading = document.getElementById('loading');
-        const forgotPasswordLink = document.getElementById('forgot-password-link');
-        
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.classList.add('show');
-        }
-        
-        function hideError() {
-            errorMessage.classList.remove('show');
-        }
-        
-        function setLoading(isLoading) {
-            if (isLoading) {
-                loading.classList.add('show');
-                loginButton.disabled = true;
-            } else {
-                loading.classList.remove('show');
-                loginButton.disabled = false;
+        // Initialize Firebase after config is loaded
+        waitForConfig().then(() => {
+            const firebaseConfig = window.HandyWorksConfig.firebase;
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            
+            // Login form handler
+            const loginForm = document.getElementById('login-form');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const loginButton = document.getElementById('login-button');
+            const errorMessage = document.getElementById('error-message');
+            const loading = document.getElementById('loading');
+            const forgotPasswordLink = document.getElementById('forgot-password-link');
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.add('show');
             }
-        }
-        
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            hideError();
-            setLoading(true);
             
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
+            function hideError() {
+                errorMessage.classList.remove('show');
+            }
             
-            try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                // Login successful - redirect to dashboard
-                window.location.href = 'dashboard.html';
-            } catch (error) {
-                setLoading(false);
-                let errorMsg = 'Login failed. Please try again.';
+            function setLoading(isLoading) {
+                if (isLoading) {
+                    loading.classList.add('show');
+                    loginButton.disabled = true;
+                } else {
+                    loading.classList.remove('show');
+                    loginButton.disabled = false;
+                }
+            }
+            
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                hideError();
+                setLoading(true);
                 
-                switch (error.code) {
-                    case 'auth/user-not-found':
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+                
+                try {
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    // Login successful - redirect to dashboard
+                    window.location.href = 'dashboard.html';
+                } catch (error) {
+                    setLoading(false);
+                    let errorMsg = 'Login failed. Please try again.';
+                    
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                            errorMsg = 'No account found with this email address.';
+                            break;
+                        case 'auth/wrong-password':
+                            errorMsg = 'Incorrect password. Please try again.';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMsg = 'Invalid email address.';
+                            break;
+                        case 'auth/user-disabled':
+                            errorMsg = 'This account has been disabled.';
+                            break;
+                        case 'auth/too-many-requests':
+                            errorMsg = 'Too many failed login attempts. Please try again later.';
+                            break;
+                    }
+                    
+                    showError(errorMsg);
+                }
+            });
+            
+            // Forgot password handler
+            forgotPasswordLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const email = emailInput.value.trim();
+                
+                if (!email) {
+                    showError('Please enter your email address first.');
+                    return;
+                }
+                
+                try {
+                    await sendPasswordResetEmail(auth, email);
+                    alert('Password reset email sent! Please check your inbox.');
+                } catch (error) {
+                    let errorMsg = 'Failed to send password reset email.';
+                    if (error.code === 'auth/user-not-found') {
                         errorMsg = 'No account found with this email address.';
-                        break;
-                    case 'auth/wrong-password':
-                        errorMsg = 'Incorrect password. Please try again.';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMsg = 'Invalid email address.';
-                        break;
-                    case 'auth/user-disabled':
-                        errorMsg = 'This account has been disabled.';
-                        break;
-                    case 'auth/too-many-requests':
-                        errorMsg = 'Too many failed login attempts. Please try again later.';
-                        break;
+                    }
+                    showError(errorMsg);
                 }
-                
-                showError(errorMsg);
-            }
-        });
-        
-        // Forgot password handler
-        forgotPasswordLink.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const email = emailInput.value.trim();
-            
-            if (!email) {
-                showError('Please enter your email address first.');
-                return;
-            }
-            
-            try {
-                await sendPasswordResetEmail(auth, email);
-                alert('Password reset email sent! Please check your inbox.');
-            } catch (error) {
-                let errorMsg = 'Failed to send password reset email.';
-                if (error.code === 'auth/user-not-found') {
-                    errorMsg = 'No account found with this email address.';
-                }
-                showError(errorMsg);
-            }
+            });
+        }).catch((error) => {
+            console.error('Failed to initialize Firebase:', error);
+            document.getElementById('error-message').textContent = 'Failed to initialize. Please refresh the page.';
+            document.getElementById('error-message').classList.add('show');
         });
     </script>
 </body>
