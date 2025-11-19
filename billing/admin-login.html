@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HandyWorks Billing - Admin Login">
+    <title>Admin Login - HandyWorks Billing</title>
+    <link rel="stylesheet" href="../css/style.css?v=20250129v3">
+    <script src="../js/config.js?v=20250129v3"></script>
+    <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #008080 0%, #006666 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .login-container {
+            max-width: 450px;
+            width: 100%;
+            padding: 2.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .login-header h1 {
+            color: #008080;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #008080;
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 0.875rem;
+            background: #008080;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-login:hover {
+            background: #006666;
+        }
+        
+        .btn-login:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 0.875rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+            border-left: 4px solid #c33;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            margin-top: 1rem;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>HandyWorks Billing</h1>
+            <p>Admin Login</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="btn-login" id="loginButton">Login</button>
+        </form>
+        
+        <div class="loading" id="loading">Logging in...</div>
+    </div>
+
+    <script>
+        // Initialize Firebase
+        if (typeof window.HandyWorksConfig === 'undefined') {
+            console.error('HandyWorksConfig not found');
+            document.getElementById('errorMessage').textContent = 'Configuration error. Please refresh the page.';
+            document.getElementById('errorMessage').classList.add('show');
+        } else {
+            const config = window.HandyWorksConfig.firebase;
+            firebase.initializeApp(config);
+            const auth = firebase.auth();
+            
+            // Check if already logged in
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    // Already logged in, redirect to dashboard
+                    window.location.href = 'admin.html';
+                }
+            });
+            
+            // Handle login form submission
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const errorMessage = document.getElementById('errorMessage');
+                const loginButton = document.getElementById('loginButton');
+                const loading = document.getElementById('loading');
+                
+                // Clear previous errors
+                errorMessage.classList.remove('show');
+                loginButton.disabled = true;
+                loading.classList.add('show');
+                
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                    // Redirect handled by authStateChanged
+                    window.location.href = 'admin.html';
+                } catch (error) {
+                    console.error('Login error:', error);
+                    errorMessage.textContent = error.message || 'Login failed. Please check your credentials.';
+                    errorMessage.classList.add('show');
+                    loginButton.disabled = false;
+                    loading.classList.remove('show');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+
