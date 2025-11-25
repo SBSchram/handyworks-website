@@ -965,6 +965,38 @@ body.legacy-page main {
     overflow: visible !important;
 }
 
+.post-excerpt ul,
+.post-excerpt ol {
+    margin: 1rem 0 1rem 1.5rem;
+    padding-left: 0;
+    line-height: 1.7;
+}
+
+.post-excerpt ul {
+    list-style-type: disc !important;
+    list-style-position: outside !important;
+}
+
+.post-excerpt ol {
+    list-style-type: decimal !important;
+    list-style-position: outside !important;
+}
+
+.post-excerpt li {
+    display: list-item !important;
+    margin-bottom: 0.5rem;
+    list-style-position: outside !important;
+    margin-left: 1.5rem;
+}
+
+.post-excerpt ul li {
+    list-style-type: disc !important;
+}
+
+.post-excerpt ol li {
+    list-style-type: decimal !important;
+}
+
 /* Blog Post Content Typography */
 .post-content {
     line-height: 1.7;
