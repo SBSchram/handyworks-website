@@ -56,5 +56,39 @@
     <footer>
         <!-- Footer content will be inserted by header-footer.js -->
     </footer>
+    
+    <script>
+    // Keep page open when downloads are triggered from external apps (MS Access)
+    // This prevents the page from closing when a direct .exe link is followed
+    window.addEventListener('beforeunload', function(e) {
+        // Only prevent if this is a programmatic download, not user navigation
+        if (document.activeElement.tagName !== 'A') {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+    
+    // Alternative: Force all download links to open files without navigating away
+    document.addEventListener('DOMContentLoaded', function() {
+        const downloadLinks = document.querySelectorAll('a[download]');
+        downloadLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('href');
+                
+                // Create hidden iframe to trigger download without navigation
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = url;
+                document.body.appendChild(iframe);
+                
+                // Clean up after download starts
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                }, 2000);
+            });
+        });
+    });
+    </script>
 </body>
 </html>
