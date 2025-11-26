@@ -58,17 +58,7 @@
     </footer>
     
     <script>
-    // Keep page open when downloads are triggered from external apps (MS Access)
-    // This prevents the page from closing when a direct .exe link is followed
-    window.addEventListener('beforeunload', function(e) {
-        // Only prevent if this is a programmatic download, not user navigation
-        if (document.activeElement.tagName !== 'A') {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
-    
-    // Alternative: Force all download links to open files without navigating away
+    // Force all download links to open files without navigating away
     document.addEventListener('DOMContentLoaded', function() {
         const downloadLinks = document.querySelectorAll('a[download]');
         downloadLinks.forEach(link => {
