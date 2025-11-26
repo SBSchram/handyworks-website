@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Download HandyWorks software upgrades, installers, manuals, and helper files. Get the latest version of HandyWorks.">
+    <meta name="keywords" content="HandyWorks, chiropractic software, office management, patient records, billing software, chiropractic practice management">
+    <meta name="author" content="HandyWorks Software">
+    <meta property="og:title" content="Downloads">
+    <meta property="og:description" content="Download HandyWorks software upgrades, installers, manuals, and helper files. Get the latest version of HandyWorks.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sbschram.github.io/handyworks-website/downloads.html">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Downloads">
+    <meta name="twitter:description" content="Download HandyWorks software upgrades, installers, manuals, and helper files. Get the latest version of HandyWorks.">
+    <title>Downloads</title>
+    <link rel="stylesheet" href="css/style.css?v=9d89ba2">
+    <script src="js/config.js?v=9d89ba2"></script>
+    <script src="js/header-footer.js?v=9d89ba2" defer></script>
+    <script src="js/sidebar.js?v=9d89ba2" defer></script>
+    <link rel="icon" type="image/gif" href="images/logos/cropped-hwlogo.gif">
+</head>
+<body>
+    <header>
+        <!-- Header content will be inserted by header-footer.js -->
+    </header>
+    
+    <main>
+        <div class="content-wrapper">
+            <div class="main-content">
+                <h1>Upgrades & Downloads</h1>
+                
+                <div class="upgrade-notice">
+                    <p><strong>The latest upgrade contains all prior improvements.</strong> <strong style="color: #ff0000;">(For safety, always backup your data and current version of HW before proceeding.)</strong></p>
+                </div>
+                
+                <p><a href="index.html" style="color: #0000ff;">See what's new!</a></p>
+                <ul class="upgrades-list">
+                    <li><a href="public/HW_Upgrade_11_25.exe?v=9d89ba2" download target="_self" onclick="event.stopPropagation();">11/24/2025</a> – The Last 2025 update</li>
+                    <li><a href="public/HW_Upgrade_02_25.exe?v=9d89ba2" download target="_self" onclick="event.stopPropagation();">02/06/2025</a> – The First 2025 update</li>
+                 </ul>
+                
+                <h2 class="no-border"><strong>Downloads to help you run HandyWorks.</strong></h2>
+                <p>For new installs, look <a href="faq.html#Install">HERE</a> for instructions.</p>
+                
+                <ul class="downloads-list">
+                    <li><a href="public/HW_Install.exe?v=9d89ba2" download target="_self" onclick="event.stopPropagation();">Helper Files for Re-Installing HW</a> Contains static elements like shortcuts, icons and manual</li>
+                    <li><a href="public/Manual.pdf?v=9d89ba2" download target="_self" onclick="event.stopPropagation();">Just the Manual</a></li>
+                    <li><a href="public/clicksend.exe?v=9d89ba2" download target="_self" onclick="event.stopPropagation();">Click Send sample file</a> - Extract to C:\HWW after establishing a <a href="https://clicksend.com" target="_blank">clicksend</a> account</li>
+                    <li><a href="public/bitcoin.pdf?v=9d89ba2" download target="_self" onclick="event.stopPropagation();">Bitcoin White Paper</a> - From Satoshi Nakamoto</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <!-- Footer content will be inserted by header-footer.js -->
+    </footer>
+    
+    <script>
+    // Keep page open when downloads are triggered from external apps (MS Access)
+    // This prevents the page from closing when a direct .exe link is followed
+    window.addEventListener('beforeunload', function(e) {
+        // Only prevent if this is a programmatic download, not user navigation
+        if (document.activeElement.tagName !== 'A') {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+    
+    // Alternative: Force all download links to open files without navigating away
+    document.addEventListener('DOMContentLoaded', function() {
+        const downloadLinks = document.querySelectorAll('a[download]');
+        downloadLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('href');
+                
+                // Create hidden iframe to trigger download without navigation
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = url;
+                document.body.appendChild(iframe);
+                
+                // Clean up after download starts
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                }, 2000);
+            });
+        });
+    });
+    </script>
+</body>
+</html>
