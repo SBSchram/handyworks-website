@@ -148,6 +148,23 @@
     </div>
 
     <script>
+        // Force referrer policy before Firebase initialization
+        // This must be set before any cross-origin requests
+        if (document.referrerPolicy) {
+            document.referrerPolicy = 'unsafe-url';
+        }
+        
+        // Also try setting via meta tag dynamically
+        const metaReferrer = document.querySelector('meta[name="referrer"]');
+        if (metaReferrer) {
+            metaReferrer.setAttribute('content', 'unsafe-url');
+        } else {
+            const meta = document.createElement('meta');
+            meta.name = 'referrer';
+            meta.content = 'unsafe-url';
+            document.head.insertBefore(meta, document.head.firstChild);
+        }
+        
         // Initialize Firebase
         if (typeof window.HandyWorksConfig === 'undefined') {
             console.error('HandyWorksConfig not found');
@@ -161,6 +178,7 @@
             console.log('Origin:', window.location.origin);
             console.log('Hostname:', window.location.hostname);
             console.log('Protocol:', window.location.protocol);
+            console.log('Referrer Policy:', document.referrerPolicy || 'not set');
             
             firebase.initializeApp(config);
             const auth = firebase.auth();
