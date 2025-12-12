@@ -230,10 +230,15 @@ handyworks-website/
 **Documentation Created**:
 - `scripts/FIRESTORE_AUTHORIZED_DOMAINS.md` - Step-by-step guide
 
-**Status**: ✅ **FIXED** - Referrer Policy was blocking Referer header
-- **Root Cause**: Browser `Referrer Policy: no-referrer` prevented Referer header from being sent
-- **Solution**: Added `<meta name="referrer" content="origin-when-cross-origin">` to admin-login.html and admin.html
-- **Fix Applied**: Changed from `no-referrer` to `origin-when-cross-origin` to allow Firebase to receive Referer header
+**Status**: 🔄 **IN PROGRESS** - Referrer Policy issue being debugged
+- **Root Cause**: Browser `Referrer Policy: no-referrer` preventing Referer header from being sent
+- **Attempted Solutions**: 
+  - Added `<meta name="referrer" content="unsafe-url">` to admin-login.html and admin.html
+  - Added JavaScript to force referrer policy
+  - Added cache-control headers
+  - Updated cache-busting to `?v=20251212` (always update on changes)
+- **Current Issue**: Referrer Policy still shows "not set" in console - likely GitHub Pages HTTP header override
+- **Next Steps**: Check if GitHub Pages sets Referrer-Policy HTTP header, consider Firebase Hosting if needed
 - Domain `handyworks.com` is correctly in authorized domains list
 
 ## Lessons
