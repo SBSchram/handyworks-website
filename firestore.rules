@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user's email
+    function getUserEmail() {
+      return request.auth.token.email;
+    }
+    
+    // Helper function to check if user is admin
+    // Admins are identified by custom claim 'admin: true' OR specific email addresses
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        request.auth.token.email in ['steve@handyworks.com'] // Add admin emails here
+      );
+    }
+    
+    // Helper function to check if user's email matches a document's EMAIL field
+    function isOwner(userEmail) {
+      return resource.data.EMAIL == userEmail;
+    }
+    
+    // Helper function to check if user's email matches a document's EMAIL field (for writes)
+    function willBeOwner(userEmail) {
+      return request.resource.data.EMAIL == userEmail;
+    }
+    
+    // Collection: handyworks_users
+    match /handyworks_users/{userId} {
+      // Read: Users can read their own record (matching email), admins can read all
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isOwner(getUserEmail())
+      );
+      
+      // Write: Only admins can write to user records
+      allow write: if isAuthenticated() && isAdmin();
+      
+      // Create: Only admins can create new user records
+      allow create: if isAuthenticated() && isAdmin();
+      
+      // Delete: Only admins can delete user records
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
+    // Collection: handyworks_billing
+    match /handyworks_billing/{billingId} {
+      // Read: Users can read their own billing records (matching acct_num), admins can read all
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (resource.data.acct_num != null && 
+         exists(/databases/$(database)/documents/handyworks_users/$(string(resource.data.acct_num))) &&
+         get(/databases/$(database)/documents/handyworks_users/$(string(resource.data.acct_num))).data.EMAIL == getUserEmail())
+      );
+      
+      // Write: Only admins can write billing records
+      allow write: if isAuthenticated() && isAdmin();
+      
+      // Create: Only admins can create billing records
+      allow create: if isAuthenticated() && isAdmin();
+      
+      // Delete: Only admins can delete billing records
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
+    // Collection: handyworks_transactions
+    match /handyworks_transactions/{transactionId} {
+      // Read: Users can read their own transactions (matching acct_num), admins can read all
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (resource.data.acct_num != null && 
+         exists(/databases/$(database)/documents/handyworks_users/$(string(resource.data.acct_num))) &&
+         get(/databases/$(database)/documents/handyworks_users/$(string(resource.data.acct_num))).data.EMAIL == getUserEmail())
+      );
+      
+      // Write: Only admins can write transaction records
+      allow write: if isAuthenticated() && isAdmin();
+      
+      // Create: Only admins can create transaction records
+      allow create: if isAuthenticated() && isAdmin();
+      
+      // Delete: Only admins can delete transaction records
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
+    // Deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

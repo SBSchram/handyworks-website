@@ -154,6 +154,13 @@
             document.getElementById('errorMessage').classList.add('show');
         } else {
             const config = window.HandyWorksConfig.firebase;
+            
+            // Debug: Log current location info
+            console.log('Current URL:', window.location.href);
+            console.log('Origin:', window.location.origin);
+            console.log('Hostname:', window.location.hostname);
+            console.log('Protocol:', window.location.protocol);
+            
             firebase.initializeApp(config);
             const auth = firebase.auth();
             
@@ -163,6 +170,11 @@
                     // Already logged in, redirect to dashboard
                     window.location.href = 'admin.html';
                 }
+            }, (error) => {
+                // Log auth state errors
+                console.error('Auth state error:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
             });
             
             // Handle login form submission
