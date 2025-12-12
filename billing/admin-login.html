@@ -151,21 +151,32 @@
     </div>
 
     <script>
-        // Force referrer policy before Firebase initialization
-        // This must be set before any cross-origin requests
-        if (document.referrerPolicy) {
-            document.referrerPolicy = 'unsafe-url';
-        }
-        
-        // Also try setting via meta tag dynamically
-        const metaReferrer = document.querySelector('meta[name="referrer"]');
-        if (metaReferrer) {
+        // Force referrer policy - must be set VERY early, before any scripts load
+        // Try multiple methods to ensure it works
+        try {
+            // Method 1: Set on document if supported
+            if (document.referrerPolicy !== undefined) {
+                document.referrerPolicy = 'unsafe-url';
+            }
+            
+            // Method 2: Set via meta tag (should already be in HTML, but ensure it's correct)
+            let metaReferrer = document.querySelector('meta[name="referrer"]');
+            if (!metaReferrer) {
+                metaReferrer = document.createElement('meta');
+                metaReferrer.name = 'referrer';
+                document.head.insertBefore(metaReferrer, document.head.firstChild);
+            }
             metaReferrer.setAttribute('content', 'unsafe-url');
-        } else {
-            const meta = document.createElement('meta');
-            meta.name = 'referrer';
-            meta.content = 'unsafe-url';
-            document.head.insertBefore(meta, document.head.firstChild);
+            
+            // Method 3: Try setting on link elements (for future requests)
+            const links = document.querySelectorAll('link[rel="stylesheet"]');
+            links.forEach(link => {
+                if (link.referrerPolicy !== undefined) {
+                    link.referrerPolicy = 'unsafe-url';
+                }
+            });
+        } catch (e) {
+            console.warn('Could not set referrer policy:', e);
         }
         
         // Initialize Firebase
@@ -182,6 +193,7 @@
             console.log('Hostname:', window.location.hostname);
             console.log('Protocol:', window.location.protocol);
             console.log('Referrer Policy:', document.referrerPolicy || 'not set');
+            console.log('Meta Referrer:', document.querySelector('meta[name="referrer"]')?.getAttribute('content') || 'not found');
             
             firebase.initializeApp(config);
             const auth = firebase.auth();
@@ -215,12 +227,24 @@
                 loading.classList.add('show');
                 
                 try {
+                    // Log referrer policy right before auth call
+                    console.log('Before auth - Referrer Policy:', document.referrerPolicy || 'not set');
+                    console.log('Before auth - Document referrer:', document.referrer);
+                    
                     await auth.signInWithEmailAndPassword(email, password);
                     // Redirect handled by authStateChanged
                     window.location.href = 'admin.html';
                 } catch (error) {
                     console.error('Login error:', error);
-                    errorMessage.textContent = error.message || 'Login failed. Please check your credentials.';
+                    console.error('Error code:', error.code);
+                    console.error('Error message:', error.message);
+                    
+                    // Check if it's the referrer error
+                    if (error.code === 'auth/requests-from-referer-https://handyworks.com-are-blocked') {
+                        errorMessage.innerHTML = 'Authentication error: Referrer policy issue. <br>Please check browser console for details.';
+                    } else {
+                        errorMessage.textContent = error.message || 'Login failed. Please check your credentials.';
+                    }
                     errorMessage.classList.add('show');
                     loginButton.disabled = false;
                     loading.classList.remove('show');
