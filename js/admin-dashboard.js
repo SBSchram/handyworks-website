@@ -271,10 +271,353 @@
         window.URL.revokeObjectURL(url);
     }
     
-    // Generate bill for specific user (placeholder)
+    // Generate bill for specific user - Opens invoice modal
     window.generateBillForUser = function(acctNum, name) {
-        alert(`Generate Bill for ${name} (Account #${acctNum})\n\nThis functionality will be implemented in Phase 2 (Stripe Payment Links).`);
+        const user = allUsers.find(u => u.acct_num == acctNum);
+        if (!user) {
+            alert('User not found');
+            return;
+        }
+        openInvoiceModal(user);
     };
+    
+    // Invoice Modal Management
+    const invoiceModal = document.getElementById('invoiceModal');
+    const modalClose = document.getElementById('modalClose');
+    const cancelButton = document.getElementById('cancelButton');
+    const generateInvoiceButton = document.getElementById('generateInvoiceButton');
+    const generateButtonText = document.getElementById('generateButtonText');
+    const generateButtonSpinner = document.getElementById('generateButtonSpinner');
+    const invoiceAmountPreset = document.getElementById('invoiceAmountPreset');
+    const invoiceAmount = document.getElementById('invoiceAmount');
+    const invoiceYear = document.getElementById('invoiceYear');
+    const invoiceDescription = document.getElementById('invoiceDescription');
+    const invoiceDueDate = document.getElementById('invoiceDueDate');
+    const modalSuccessMessage = document.getElementById('modalSuccessMessage');
+    const modalErrorMessage = document.getElementById('modalErrorMessage');
+    const paymentLinkResult = document.getElementById('paymentLinkResult');
+    const paymentLinkUrl = document.getElementById('paymentLinkUrl');
+    const emailTemplate = document.getElementById('emailTemplate');
+    const copyLinkButton = document.getElementById('copyLinkButton');
+    const copyEmailButton = document.getElementById('copyEmailButton');
+    
+    let currentUser = null;
+    
+    // Open modal with user data
+    function openInvoiceModal(user) {
+        currentUser = user;
+        
+        // Populate form
+        document.getElementById('invoiceAcctNum').value = user.acct_num || '';
+        document.getElementById('invoiceName').value = `${user.fname || ''} ${user.lname || ''}`.trim();
+        document.getElementById('invoiceEmail').value = user.email || '';
+        document.getElementById('invoiceClinic').value = user.clinic || '';
+        
+        // Set defaults
+        const currentYear = new Date().getFullYear();
+        invoiceYear.value = currentYear + 1; // Default to next year
+        invoiceAmount.value = '555';
+        invoiceAmountPreset.value = '555';
+        invoiceDescription.value = `Annual Maintenance ${currentYear + 1}`;
+        
+        // Set due date to 30 days from now
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+        invoiceDueDate.value = dueDate.toISOString().split('T')[0];
+        
+        // Reset modal state
+        hideModalMessages();
+        paymentLinkResult.style.display = 'none';
+        document.getElementById('invoiceForm').style.display = 'block';
+        generateInvoiceButton.disabled = false;
+        
+        // Show modal
+        invoiceModal.classList.add('active');
+    }
+    
+    // Close modal
+    function closeInvoiceModal() {
+        invoiceModal.classList.remove('active');
+        currentUser = null;
+    }
+    
+    modalClose.addEventListener('click', closeInvoiceModal);
+    cancelButton.addEventListener('click', closeInvoiceModal);
+    
+    // Close modal when clicking outside
+    invoiceModal.addEventListener('click', (e) => {
+        if (e.target === invoiceModal) {
+            closeInvoiceModal();
+        }
+    });
+    
+    // Amount preset change handler
+    invoiceAmountPreset.addEventListener('change', (e) => {
+        if (e.target.value === 'custom') {
+            invoiceAmount.focus();
+        } else {
+            invoiceAmount.value = e.target.value;
+        }
+    });
+    
+    // Update description when year changes
+    invoiceYear.addEventListener('change', (e) => {
+        invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
+    });
+    
+    // Generate invoice button handler
+    generateInvoiceButton.addEventListener('click', async () => {
+        await generateInvoice();
+    });
+    
+    // Main invoice generation function
+    async function generateInvoice() {
+        if (!currentUser) {
+            showModalError('No user selected');
+            return;
+        }
+        
+        // Validate Stripe configuration
+        const stripeConfig = window.HandyWorksConfig.stripe;
+        if (!stripeConfig || !stripeConfig.secretKey || stripeConfig.secretKey.includes('YOUR_')) {
+            showModalError('Stripe is not configured. Please add your API keys to js/config.js (see scripts/STRIPE_PAYMENT_LINKS_SETUP.md)');
+            return;
+        }
+        
+        if (!stripeConfig.priceId || stripeConfig.priceId.includes('YOUR_')) {
+            showModalError('Stripe Price ID is not configured. Please create a product in Stripe Dashboard and add the price ID to js/config.js');
+            return;
+        }
+        
+        // Get form values
+        const invoiceData = {
+            acct_num: currentUser.acct_num,
+            customer_name: `${currentUser.fname || ''} ${currentUser.lname || ''}`.trim(),
+            customer_email: currentUser.email || '',
+            clinic_name: currentUser.clinic || '',
+            year: parseInt(invoiceYear.value),
+            amount: parseFloat(invoiceAmount.value),
+            description: invoiceDescription.value,
+            due_date: new Date(invoiceDueDate.value),
+            notes: document.getElementById('invoiceNotes').value || null
+        };
+        
+        // Validate
+        if (!invoiceData.amount || invoiceData.amount <= 0) {
+            showModalError('Please enter a valid amount');
+            return;
+        }
+        
+        if (!invoiceData.due_date || isNaN(invoiceData.due_date.getTime())) {
+            showModalError('Please enter a valid due date');
+            return;
+        }
+        
+        // Show loading state
+        setGenerateButtonLoading(true);
+        hideModalMessages();
+        
+        try {
+            // Step 1: Create Stripe Payment Link
+            showModalSuccess('Creating Stripe payment link...');
+            const paymentLink = await createStripePaymentLink(invoiceData);
+            
+            // Step 2: Save invoice to Firestore
+            showModalSuccess('Saving invoice to database...');
+            const invoiceId = await saveInvoiceToFirestore(invoiceData, paymentLink);
+            
+            // Step 3: Generate email template
+            const emailText = generateEmailTemplate(invoiceData, paymentLink);
+            
+            // Step 4: Show success
+            showInvoiceSuccess(paymentLink, emailText);
+            
+        } catch (error) {
+            console.error('Invoice generation error:', error);
+            showModalError(`Failed to generate invoice: ${error.message}`);
+        } finally {
+            setGenerateButtonLoading(false);
+        }
+    }
+    
+    // Create Stripe Payment Link
+    async function createStripePaymentLink(invoiceData) {
+        const stripeConfig = window.HandyWorksConfig.stripe;
+        
+        const body = new URLSearchParams({
+            'line_items[0][price]': stripeConfig.priceId,
+            'line_items[0][quantity]': '1',
+            'metadata[acct_num]': invoiceData.acct_num.toString(),
+            'metadata[customer_name]': invoiceData.customer_name,
+            'metadata[year]': invoiceData.year.toString(),
+            'metadata[invoice_amount]': invoiceData.amount.toString(),
+            'after_completion[type]': 'hosted_confirmation',
+            'after_completion[hosted_confirmation][custom_message]': 'Thank you for your payment! You will receive a receipt via email. Your HandyWorks maintenance is now active.'
+        });
+        
+        const response = await fetch('https://api.stripe.com/v1/payment_links', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${stripeConfig.secretKey}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: body
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Failed to create payment link');
+        }
+        
+        const data = await response.json();
+        return {
+            id: data.id,
+            url: data.url
+        };
+    }
+    
+    // Save invoice to Firestore
+    async function saveInvoiceToFirestore(invoiceData, paymentLink) {
+        const invoice = {
+            invoice_id: `INV-${invoiceData.year}-${invoiceData.acct_num}`,
+            acct_num: invoiceData.acct_num,
+            customer_name: invoiceData.customer_name,
+            customer_email: invoiceData.customer_email,
+            clinic_name: invoiceData.clinic_name,
+            year: invoiceData.year,
+            amount: invoiceData.amount,
+            description: invoiceData.description,
+            invoice_date: firebase.firestore.Timestamp.now(),
+            due_date: firebase.firestore.Timestamp.fromDate(invoiceData.due_date),
+            payment_status: 'pending',
+            payment_method: null,
+            stripe_payment_link_id: paymentLink.id,
+            stripe_payment_link_url: paymentLink.url,
+            stripe_payment_intent_id: null,
+            paid_date: null,
+            paid_amount: null,
+            transaction_ref: null,
+            payment_notes: invoiceData.notes,
+            created_at: firebase.firestore.Timestamp.now(),
+            updated_at: firebase.firestore.Timestamp.now(),
+            created_by: auth.currentUser?.email || 'admin',
+            updated_by: null
+        };
+        
+        const docRef = await db.collection('handyworks_invoices').add(invoice);
+        return docRef.id;
+    }
+    
+    // Generate email template
+    function generateEmailTemplate(invoiceData, paymentLink) {
+        return `Subject: HandyWorks Annual Maintenance Invoice - ${invoiceData.year}
+
+Dear ${invoiceData.customer_name},
+
+Your annual HandyWorks maintenance fee for ${invoiceData.year} is due.
+
+INVOICE #: INV-${invoiceData.year}-${invoiceData.acct_num}
+AMOUNT DUE: $${invoiceData.amount.toFixed(2)}
+DUE DATE: ${invoiceData.due_date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+
+PAYMENT OPTIONS:
+
+1. PAY ONLINE (Credit Card via Stripe):
+   Click here: ${paymentLink.url}
+   
+   This secure payment link is personalized for your account. You can pay with any major credit card.
+
+2. PAY BY CHECK ($15 discount - $540):
+   Mail check to:
+   HandyWorks Software
+   [Your Address]
+   [City, State ZIP]
+   
+   Please include invoice number (INV-${invoiceData.year}-${invoiceData.acct_num}) on check memo line.
+
+3. PAY BY PHONE (Credit Card):
+   Call us at [Your Phone Number] with your credit card information
+   and we'll process it securely.
+
+Thank you for your continued business! We appreciate your support and look forward to serving you in ${invoiceData.year}.
+
+If you have any questions about this invoice, please don't hesitate to contact us.
+
+Best regards,
+HandyWorks Software
+
+---
+This is an automated invoice. Please do not reply to this email.`;
+    }
+    
+    // Show invoice success with payment link and email template
+    function showInvoiceSuccess(paymentLink, emailText) {
+        document.getElementById('invoiceForm').style.display = 'none';
+        paymentLinkResult.style.display = 'block';
+        generateInvoiceButton.disabled = true;
+        
+        paymentLinkUrl.textContent = paymentLink.url;
+        emailTemplate.value = emailText;
+        
+        showModalSuccess('✅ Invoice created successfully! Copy the payment link or email template below.');
+    }
+    
+    // Copy buttons
+    copyLinkButton.addEventListener('click', () => {
+        navigator.clipboard.writeText(paymentLinkUrl.textContent)
+            .then(() => {
+                const originalText = copyLinkButton.textContent;
+                copyLinkButton.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    copyLinkButton.textContent = originalText;
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Copy failed:', err);
+                alert('Failed to copy. Please select and copy manually.');
+            });
+    });
+    
+    copyEmailButton.addEventListener('click', () => {
+        emailTemplate.select();
+        document.execCommand('copy');
+        
+        const originalText = copyEmailButton.textContent;
+        copyEmailButton.textContent = '✓ Copied!';
+        setTimeout(() => {
+            copyEmailButton.textContent = originalText;
+        }, 2000);
+    });
+    
+    // Modal message helpers
+    function showModalSuccess(message) {
+        modalSuccessMessage.textContent = message;
+        modalSuccessMessage.style.display = 'block';
+        modalErrorMessage.style.display = 'none';
+    }
+    
+    function showModalError(message) {
+        modalErrorMessage.textContent = message;
+        modalErrorMessage.style.display = 'block';
+        modalSuccessMessage.style.display = 'none';
+    }
+    
+    function hideModalMessages() {
+        modalSuccessMessage.style.display = 'none';
+        modalErrorMessage.style.display = 'none';
+    }
+    
+    function setGenerateButtonLoading(isLoading) {
+        if (isLoading) {
+            generateButtonText.style.display = 'none';
+            generateButtonSpinner.style.display = 'inline-block';
+            generateInvoiceButton.disabled = true;
+        } else {
+            generateButtonText.style.display = 'inline';
+            generateButtonSpinner.style.display = 'none';
+            generateInvoiceButton.disabled = false;
+        }
+    }
     
     // Utility functions
     function formatCurrency(amount) {

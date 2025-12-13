@@ -1,5 +1,800 @@
 # HandyWorks Website Development Scratchpad
 
+## 📌 IMPORTANT: Documentation Location Policy
+
+**Date**: 2025-12-12  
+**Policy**: ALL `.md` documentation files MUST be saved to `.cursor/` directory
+
+**Reason:**
+- Files in `scripts/` directory are committed to GitHub repo and deployed to public website
+- Documentation contains sensitive information (architecture, database schemas, setup guides)
+- `.cursor/` directory is in `.gitignore` and remains private
+
+**✅ Completed Actions:**
+1. Added `.cursor/` to `.gitignore`
+2. Added `scripts/*.md` to `.gitignore` (prevents future mistakes)
+3. Moved all 23 existing `.md` files from `scripts/` to `.cursor/`
+
+**📁 All Documentation Now in `.cursor/`:**
+- `PHASE1_SETUP_TESTING.md` - Setup and testing guide
+- `STRIPE_PAYMENT_LINKS_SETUP.md` - Stripe setup instructions
+- `FIRESTORE_INVOICES_SCHEMA.md` - Database schema
+- `DEPLOY_FIRESTORE_RULES.md` - Deployment guide
+- `BILLING_SYSTEM_ARCHITECTURE.md` - System architecture
+- `FIREBASE_API_KEY_FIX.md` - Firebase troubleshooting
+- Plus 17 other guides...
+
+**🔒 What Stays in `scripts/`:**
+- `set_admin_claim.js` - Actual executable script (not documentation)
+- Any future `.js` or `.py` scripts that are meant to be version controlled
+
+---
+
+## ✅ PHASE 1 COMPLETE: Stripe Invoice Generation with Payment Links
+
+**Date**: 2025-12-12  
+**Status**: ✅ Implementation Complete - Ready for Setup & Testing
+
+### What Was Built
+
+**Core Functionality:**
+1. ✅ Firestore schema for `handyworks_invoices` collection
+2. ✅ Updated security rules for admin-only invoice access
+3. ✅ Invoice generation modal in admin dashboard
+4. ✅ Stripe Payment Links API integration
+5. ✅ Automatic email template generation
+6. ✅ Copy-paste functionality for payment links and emails
+
+**User Workflow:**
+1. Admin logs into billing dashboard
+2. Clicks "Generate Invoice" for a customer
+3. Modal opens with pre-filled customer data
+4. Admin reviews/adjusts amount, year, due date
+5. Clicks "Generate Invoice & Payment Link"
+6. System creates Stripe Payment Link and saves invoice to Firestore
+7. Admin copies payment link and email template
+8. Admin sends invoice to customer via email
+9. Customer can pay via Stripe (card), check, or phone
+
+**Files Created/Modified:**
+- ✅ `scripts/FIRESTORE_INVOICES_SCHEMA.md` - Database schema
+- ✅ `scripts/STRIPE_PAYMENT_LINKS_SETUP.md` - Stripe setup guide
+- ✅ `scripts/DEPLOY_FIRESTORE_RULES.md` - Deployment instructions
+- ✅ `scripts/PHASE1_SETUP_TESTING.md` - Complete testing guide
+- ✅ `firestore.rules` - Added invoices collection rules
+- ✅ `js/config.js` - Added Stripe configuration placeholders
+- ✅ `billing/admin.html` - Added invoice modal UI (500+ lines)
+- ✅ `js/admin-dashboard.js` - Added invoice generation logic (400+ lines)
+
+### Next Steps for User
+
+**Before Testing:**
+1. Deploy Firestore security rules (see `scripts/DEPLOY_FIRESTORE_RULES.md`)
+2. Create Stripe product ($555) in Stripe Dashboard (Test Mode)
+3. Get Stripe API keys (secret key, product ID, price ID)
+4. Update `js/config.js` with actual Stripe keys
+5. Push changes to GitHub
+6. Wait for GitHub Pages deployment (1-2 minutes)
+
+**Testing:**
+1. Login to admin dashboard
+2. Click "Generate Invoice" for any customer
+3. Generate test invoice
+4. Copy payment link
+5. Test payment with Stripe test card: `4242 4242 4242 4242`
+6. Verify invoice in Firestore
+7. Verify payment in Stripe Dashboard
+
+**Full guide:** `scripts/PHASE1_SETUP_TESTING.md`
+
+---
+
+## 🎯 CURRENT TASK: Stripe Payment Integration Planning
+
+**Date**: 2025-12-12  
+**Status**: Phase 1 Complete - Phase 2 Planning  
+**Mode**: Executor → Waiting for User Testing
+
+### Background and Motivation
+
+The billing section is admin-only (no customer-facing login). The goal is to integrate Stripe payment processing to allow Steve to:
+1. ✅ Generate payment links for annual maintenance billing ($555/year)
+2. ✅ Send payment links to customers via email
+3. ⏳ Track payment status in Firebase Firestore (automatic via webhooks)
+4. ⏳ Optionally offer check payment discount ($540 vs $555)
+
+**Key Requirements:**
+- ✅ Admin-only access (no customer accounts needed)
+- ✅ Simple workflow: Generate payment link → Send to customer → Track payment
+- ✅ Integration with existing Firebase Firestore database (`handyworks_users` collection)
+- ✅ Minimal manual intervention once set up
+- ✅ Professional payment experience for customers
+
+### Key Challenges and Analysis
+
+Before we proceed with implementation, we need to discuss and decide on several critical architectural choices:
+
+#### 1. **Payment Link Generation Strategy**
+
+**Option A: Stripe Payment Links (Simplest)**
+- ✅ **Pros:**
+  - No backend code required (pure Stripe dashboard setup)
+  - Stripe hosts the payment page
+  - Simple URL generation
+  - Automatic email receipts from Stripe
+  - No PCI compliance concerns
+- ❌ **Cons:**
+  - Less customization of payment page
+  - Can't dynamically pass customer data (name, account #) to prefill form
+  - Harder to track which customer paid (must rely on email matching)
+  - Manual webhook setup for payment tracking
+
+**Option B: Stripe Checkout Sessions (Recommended for B2B)**
+- ✅ **Pros:**
+  - Can prefill customer data (name, email, account number)
+  - Custom success/cancel URLs
+  - Can pass metadata (account number) to track payments
+  - More professional B2B experience
+  - Better for automated billing
+- ❌ **Cons:**
+  - Requires Firebase Cloud Function to create sessions
+  - More complex setup (but more powerful)
+  - Need to deploy backend code
+
+**Option C: Stripe Payment Intents + Custom Form (Most Control)**
+- ✅ **Pros:**
+  - Full UI customization
+  - Embedded payment form on your website
+  - Complete control over user experience
+- ❌ **Cons:**
+  - Most complex implementation
+  - Need to handle PCI compliance considerations
+  - More frontend JavaScript code
+  - Overkill for simple annual billing
+
+**My Recommendation:** Start with **Option A (Payment Links)** for immediate functionality, then migrate to **Option B (Checkout Sessions)** if you need better automation.
+
+---
+
+#### 2. **Backend Architecture Decision**
+
+Since the website is static (GitHub Pages), we need a backend for:
+- Creating payment sessions/links
+- Processing webhooks from Stripe
+- Updating Firestore when payments succeed
+
+**Options:**
+
+**Option A: Firebase Cloud Functions (Recommended)**
+- ✅ Integrated with existing Firebase setup
+- ✅ Serverless (no server management)
+- ✅ Pay-per-use (low cost for ~100 transactions/year)
+- ✅ Easy Firestore access
+- ❌ Requires Firebase CLI setup
+- ❌ Requires Node.js development
+
+**Option B: Manual Process (No Backend)**
+- ✅ No code required
+- ✅ Use Stripe dashboard only
+- ❌ Manual payment tracking
+- ❌ Must manually update Firestore
+- ❌ No automation
+
+**My Recommendation:** **Firebase Cloud Functions** for automation. The initial setup cost is worth the long-term time savings.
+
+---
+
+#### 3. **Payment Workflow Design**
+
+**Workflow A: Simple Payment Links (No Customer Accounts)**
+```
+1. Admin logs into admin dashboard
+2. Admin clicks "Generate Payment Link" for a customer
+3. System creates Stripe Payment Link with amount ($555)
+4. Admin copies link and emails it to customer manually
+5. Customer clicks link → pays on Stripe-hosted page
+6. Stripe webhook notifies system → Updates Firestore
+7. Admin sees payment status updated in dashboard
+```
+
+**Workflow B: Automated Email + Payment Tracking**
+```
+1. Admin logs into admin dashboard
+2. Admin selects customers and clicks "Send Annual Bills"
+3. System generates Stripe Checkout Sessions for each customer
+4. System sends automated emails with payment links via SendGrid/EmailJS
+5. Customer clicks link → pays on Stripe-hosted page
+6. Stripe webhook notifies system → Updates Firestore automatically
+7. Admin sees payment status updated in real-time
+```
+
+**My Recommendation:** Start with **Workflow A** for simplicity, then add **Workflow B** features incrementally.
+
+---
+
+#### 4. **Check Payment Discount Strategy**
+
+**Question:** How do you want to handle the $540 check payment option?
+
+**Option A: Two Separate Payment Links**
+- Generate two links: "$555 - Pay by Card" and "$540 - Pay by Check"
+- Check payment link has instructions to mail check
+- Mark as "pending" until check arrives
+- Admin manually marks as "paid" when check received
+
+**Option B: Single Payment Link + Manual Check Tracking**
+- Only offer card payment online ($555)
+- Handle check payments completely manually (outside Stripe)
+- Admin manually enters check payments in Firestore
+
+**Option C: Stripe ACH (Bank Transfer) Instead of Check**
+- Offer ACH payment at $545 (Stripe fee: 0.8% = ~$4.40)
+- Customer links bank account directly
+- Automatic payment processing (no manual check handling)
+- Lower fees than credit card
+
+**My Recommendation:** **Option C (ACH)** is most modern, but **Option A (Two Links)** is simplest if customers prefer physical checks.
+
+---
+
+#### 5. **Data Architecture Questions**
+
+**Current State:**
+- `handyworks_users` collection exists with customer data
+- No billing/payment tracking collections yet
+
+**Proposed New Collections:**
+
+**A. `handyworks_billing` Collection**
+```javascript
+{
+  acct_num: 1696,
+  year: 2026,
+  amount: 555,
+  payment_method: "credit_card", // or "check", "ach"
+  payment_status: "pending", // or "paid", "overdue"
+  bill_date: timestamp,
+  due_date: timestamp,
+  paid_date: timestamp,
+  stripe_payment_link_id: "plink_xyz123",
+  stripe_payment_intent_id: "pi_xyz123", // set when payment succeeds
+  created_at: timestamp,
+  updated_at: timestamp
+}
+```
+
+**B. `handyworks_transactions` Collection**
+```javascript
+{
+  acct_num: 1696,
+  transaction_date: timestamp,
+  amount: 555,
+  type: "payment", // or "refund", "adjustment"
+  payment_method: "credit_card",
+  stripe_payment_intent_id: "pi_xyz123",
+  status: "succeeded",
+  description: "2026 Annual Maintenance",
+  created_at: timestamp
+}
+```
+
+**Questions for You:**
+1. Do you need transaction history, or just current year billing status?
+2. Do you want to track multi-year history, or just current year?
+3. Should we store billing records even before payment (as "invoices")?
+
+---
+
+### High-level Task Breakdown
+
+**Phase 1: Stripe Account Setup** (User Action Required)
+- [ ] Create/verify Stripe account
+- [ ] Get test mode API keys (publishable + secret)
+- [ ] Add keys to Firebase environment
+- [ ] Verify Stripe dashboard access
+
+**Phase 2: Database Schema Setup**
+- [ ] Design and document Firestore collections (`handyworks_billing`, `handyworks_transactions`)
+- [ ] Create Firestore indexes if needed
+- [ ] Update security rules to allow admin read/write
+
+**Phase 3: Simple Payment Link Generation (MVP)**
+- [ ] Add "Generate Payment Link" button to admin dashboard
+- [ ] Implement Stripe Payment Link creation (manual or via API)
+- [ ] Display payment link in admin UI for copy/paste
+- [ ] Test payment flow with Stripe test cards
+
+**Phase 4: Webhook Integration**
+- [ ] Create Firebase Cloud Function for Stripe webhooks
+- [ ] Register webhook endpoint in Stripe dashboard
+- [ ] Update Firestore when payment succeeds
+- [ ] Test webhook with Stripe CLI
+
+**Phase 5: Payment Status Tracking**
+- [ ] Display payment status in admin dashboard
+- [ ] Add filters (paid/pending/overdue)
+- [ ] Add visual indicators (colors, icons)
+- [ ] Add payment history view
+
+**Phase 6: Optional Enhancements**
+- [ ] Automated email sending
+- [ ] Checkout Session generation (vs Payment Links)
+- [ ] ACH payment option
+- [ ] Refund handling
+- [ ] Annual billing automation
+
+---
+
+### Questions for Discussion
+
+Before I proceed with implementation, please provide your input on:
+
+1. **Payment Link Strategy:**
+   - Do you want to start with simple Stripe Payment Links (no backend), or invest in Firebase Cloud Functions for better automation?
+
+2. **Check Payment Handling:**
+   - How do you currently handle check payments? Do you want to keep offering $15 discount for checks?
+   - Would you consider ACH (bank transfer) instead at a smaller discount (e.g., $545)?
+
+3. **Email Sending:**
+   - Do you want to manually email payment links, or automate it?
+   - If automated, are you okay setting up an email service (SendGrid, EmailJS, etc.)?
+
+4. **Data Tracking:**
+   - Do you need full transaction history, or just "paid/pending" status?
+   - Do you want to generate "invoices" before payment (with due dates), or just track when payment happens?
+
+5. **Timeline:**
+   - Are you looking for a quick MVP (simple payment links, manual email), or a fully automated system?
+
+6. **Stripe Account:**
+   - Do you already have a Stripe account, or do I need to guide you through setup?
+   - Do you have test mode API keys available?
+
+Please answer these questions so I can refine the implementation plan and create a prioritized task breakdown.
+
+---
+
+### ✅ DECISION: User Requirements Confirmed
+
+**Date**: 2025-12-12  
+**User Input:** "I want to send users an invoice. They can respond and pay via Stripe or send me a check. They may also want to send me their CC info so I can enter it."
+
+**Confirmed Workflow:**
+1. **Invoice Generation:** Admin generates invoice with amount ($555 or $540 for check)
+2. **Invoice Delivery:** Admin sends invoice to customer (email/mail)
+3. **Payment Options for Customer:**
+   - Option A: Click Stripe payment link in invoice → Pay online with card
+   - Option B: Mail a check to HandyWorks
+   - Option C: Call/email CC info → Admin enters it manually via Stripe Virtual Terminal
+4. **Payment Tracking:** System tracks payment status automatically (for Stripe) or manually (for checks)
+
+**Architecture Implications:**
+- ✅ Need invoice generation (PDF or email template with payment link)
+- ✅ Need Stripe Payment Links (one per customer, one-time use)
+- ✅ Need Stripe Virtual Terminal access (for manual CC entry)
+- ✅ Need webhook to track Stripe payments automatically
+- ✅ Need manual "Mark as Paid" for check payments
+- ✅ Need invoice/billing record in Firestore
+
+---
+
+### Project Status Board
+
+#### Current Status / Progress Tracking
+
+**Status:** 🚀 Ready to implement - Requirements clarified
+
+**Completed:**
+- ✅ Firebase Authentication working (admin login functional)
+- ✅ Firestore security rules deployed
+- ✅ Admin dashboard with user list and basic UI
+- ✅ Stripe test API keys added to config.js
+- ✅ User requirements clarified (invoice-based workflow)
+
+**Ready to Implement:**
+- 📝 Design invoice/billing data structure in Firestore
+- 📝 Create invoice generation UI in admin dashboard
+- 📝 Generate Stripe Payment Links per invoice
+- 📝 Create invoice email template with payment options
+- 📝 Add webhook handler for automatic payment tracking
+- 📝 Add "Mark as Paid" button for check payments
+- 📝 Add manual CC entry instructions (Stripe Virtual Terminal)
+
+**Next Steps:**
+1. Design Firestore schema for invoices/billing
+2. Create invoice generation UI
+3. Integrate Stripe Payment Link creation
+4. Set up webhook for payment tracking
+5. Add manual payment recording
+
+---
+
+### Refined Implementation Plan
+
+Based on your requirements, here's the implementation approach:
+
+#### **Phase 1: Database Schema (30 minutes)**
+
+Create `handyworks_invoices` collection:
+
+```javascript
+{
+  invoice_id: "INV-2026-1696", // Format: INV-{year}-{acct_num}
+  acct_num: 1696,
+  customer_name: "Dr. Smith",
+  customer_email: "drsmith@clinic.com",
+  year: 2026,
+  amount: 555, // or 540 for check
+  payment_method_preference: null, // Set when customer pays: "stripe", "check", "manual_card"
+  payment_status: "pending", // "pending", "paid", "overdue"
+  
+  // Invoice details
+  invoice_date: timestamp,
+  due_date: timestamp,
+  description: "Annual Maintenance 2026",
+  notes: "Pay online via Stripe, mail check to HandyWorks, or call with CC info",
+  
+  // Stripe integration
+  stripe_payment_link_id: "plink_xyz123", // For online payments
+  stripe_payment_link_url: "https://buy.stripe.com/...", // URL to include in invoice
+  stripe_payment_intent_id: null, // Set when payment succeeds
+  
+  // Payment tracking
+  paid_date: null,
+  paid_amount: null,
+  transaction_ref: null, // Check number or Stripe transaction ID
+  
+  // Metadata
+  created_at: timestamp,
+  updated_at: timestamp,
+  created_by: "admin@handyworks.com"
+}
+```
+
+#### **Phase 2: Admin Dashboard - Invoice Generation (2-3 hours)**
+
+**Add to `billing/admin.html`:**
+
+1. **"Generate Invoice" Button** next to each user
+   - Opens modal with invoice details
+   - Shows amount ($555 default, option to change to $540 for check)
+   - Shows customer info (name, email, account #)
+   - Previews invoice text
+
+2. **Invoice Generation Process:**
+   - Creates record in `handyworks_invoices` collection
+   - Calls Stripe API to create Payment Link
+   - Stores Payment Link URL in invoice record
+   - Displays invoice summary with:
+     - Payment Link URL (for copy/paste into email)
+     - Invoice text template
+     - Email template with payment instructions
+
+3. **Invoice List View:**
+   - Show all invoices with status (Pending, Paid, Overdue)
+   - Filter by status, year, customer
+   - Sortable columns
+
+#### **Phase 3: Stripe Payment Link Creation (1-2 hours)**
+
+**Option A: Use Stripe Dashboard to Create Product (Simpler)**
+- Create a $555 product in Stripe Dashboard
+- Use Stripe Payment Links API to generate unique link per customer
+- Pass customer metadata (acct_num, name) in link
+
+**Option B: Use Firebase Cloud Function (More Automated)**
+- Create Cloud Function that generates Payment Link
+- Call from admin dashboard
+- Automatically embeds customer metadata
+
+**Recommendation:** Start with **Option A** (Dashboard product + API link generation) - simpler setup.
+
+#### **Phase 4: Invoice Email Template (30 minutes)**
+
+Create template text that admin can copy/paste:
+
+```
+Subject: HandyWorks Annual Maintenance Invoice - 2026
+
+Dear [Customer Name],
+
+Your annual HandyWorks maintenance fee for 2026 is due.
+
+INVOICE #: INV-2026-[Account #]
+AMOUNT DUE: $555.00
+DUE DATE: [Date]
+
+PAYMENT OPTIONS:
+
+1. PAY ONLINE (Credit Card via Stripe):
+   Click here: [Stripe Payment Link]
+   
+2. PAY BY CHECK ($15 discount - $540):
+   Mail check to:
+   HandyWorks Software
+   [Your Address]
+   [City, State ZIP]
+   
+   Please include invoice # on check memo line.
+
+3. PAY BY PHONE (Credit Card):
+   Call us at [Phone] with your credit card information
+   and we'll process it securely.
+
+Questions? Reply to this email or call [Phone].
+
+Thank you for your business!
+
+HandyWorks Software
+```
+
+#### **Phase 5: Payment Tracking - Webhook (2-3 hours)**
+
+**Automatic Payment Tracking (Stripe Webhook):**
+
+1. Create Firebase Cloud Function: `stripeWebhook`
+2. Register webhook endpoint in Stripe Dashboard
+3. Listen for `payment_intent.succeeded` event
+4. Update invoice in Firestore:
+   - Set `payment_status` to "paid"
+   - Set `paid_date` to current timestamp
+   - Set `stripe_payment_intent_id`
+   - Set `payment_method_preference` to "stripe"
+
+**Manual Payment Tracking (Check/Manual CC):**
+
+1. Add "Mark as Paid" button in admin dashboard
+2. Opens modal to enter:
+   - Payment method (check/manual_card)
+   - Payment date
+   - Check number or transaction reference
+   - Amount paid (if different from invoice amount)
+3. Updates invoice record in Firestore
+
+#### **Phase 6: Stripe Virtual Terminal Setup (15 minutes)**
+
+**For Manual CC Entry:**
+- Enable Virtual Terminal in Stripe Dashboard
+- Document process for admin:
+  1. Customer calls with CC info
+  2. Admin logs into Stripe Dashboard
+  3. Go to Payments → Virtual Terminal
+  4. Enter amount, CC details, customer name
+  5. Add invoice # in description
+  6. Process payment
+  7. Copy transaction ID
+  8. Mark invoice as paid in admin dashboard (paste transaction ID)
+
+---
+
+### Executor's Feedback or Assistance Requests
+
+**From Planner to User:**
+
+The workflow is now clear! This is a very practical approach that:
+- ✅ Gives customers flexibility (online, check, or phone)
+- ✅ Minimizes manual work (Stripe payments auto-tracked)
+- ✅ Keeps it simple (no customer login required)
+- ✅ Professional (proper invoicing and payment tracking)
+
+**Key Decision Points Remaining:**
+
+1. **Stripe Payment Links Generation:**
+   - Should I create a Firebase Cloud Function for this, or use simpler dashboard approach?
+   - Cloud Function = more automated, Dashboard approach = simpler setup
+   - **Recommendation:** Start with dashboard approach, add Cloud Function later if needed
+
+2. **Email Sending:**
+   - Manual copy/paste email template, or integrate email service (SendGrid/EmailJS)?
+   - Manual = simpler, Automated = saves time for 100+ customers
+   - **Recommendation:** Start manual, add automation if billing 100+ customers at once is tedious
+
+3. **Check Discount:**
+   - Keep $15 discount for checks ($540 vs $555)?
+   - **Assuming yes** based on your existing documentation
+
+**Ready to proceed with implementation?** I'll start with Phase 1 (Database Schema) and Phase 2 (Invoice Generation UI) unless you want to discuss anything else first.
+
+---
+
+## ✅ RESOLVED: Firebase Authentication Referrer Policy Problem
+
+**Solution Found**: The issue was API key HTTP referrer restrictions, not the Referer header itself.
+
+**Fix Applied**: Remove HTTP referrer restrictions from Firebase API key in Google Cloud Console. Firebase can validate domains using Origin header (which we ARE sending) instead of requiring Referer header.
+
+**Reference**: Same approach used in jetlagpro-website.
+
+**Documentation**: See `scripts/FIREBASE_API_KEY_FIX.md` for detailed steps.
+
+---
+
+## 🎯 PLANNER: Firebase Authentication Referrer Policy Problem - Detailed Analysis (ARCHIVED)
+
+### Problem Statement for External Consultation
+
+**Date**: 2025-12-12  
+**Project**: HandyWorks Website Billing System  
+**Issue**: Firebase Authentication blocking requests due to missing Referer header
+
+---
+
+## Context and Setup
+
+### Project Architecture
+- **Website**: Static HTML site hosted on GitHub Pages
+- **Domain**: `https://handyworks.com` (custom domain via GitHub Pages)
+- **Firebase Project**: `handyworks-billing`
+- **Firebase Auth**: Email/password authentication
+- **Firebase Firestore**: Database with security rules deployed
+- **Authentication Flow**: Users login at `https://handyworks.com/billing/admin-login.html`
+
+### Firebase Configuration
+- **Project ID**: `handyworks-billing`
+- **Auth Domain**: `handyworks-billing.firebaseapp.com`
+- **Authorized Domains**: `handyworks.com` is correctly added to Firebase Console → Authentication → Settings → Authorized Domains
+- **Security Rules**: Deployed and working (requires authentication)
+
+---
+
+## The Problem
+
+### Error Message
+```
+Firebase: Error (auth/requests-from-referer-https://handyworks.com-are-blocked)
+```
+
+### When It Occurs
+- When user attempts to login via `auth.signInWithEmailAndPassword(email, password)`
+- POST request to `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword` returns **403 Forbidden**
+- Error occurs even though domain is in authorized domains list
+
+### Network Request Details
+- **Request URL**: `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=...`
+- **Status**: 403 Forbidden
+- **Request Headers**:
+  - `origin: https://handyworks.com` ✅ (correct)
+  - `referer`: **MISSING** ❌ (not being sent)
+- **Response Headers**:
+  - `access-control-allow-origin: https://handyworks.com` ✅ (Firebase recognizes origin)
+  - `vary: Referer` (Firebase is checking for Referer header)
+
+### Browser Console Observations
+- `document.referrerPolicy`: Shows "not set"
+- Meta tag: `<meta name="referrer" content="unsafe-url">` is present in HTML
+- Console log shows: `Meta Referrer: unsafe-url` (meta tag is read correctly)
+- But: `Referrer Policy: not set` (browser not applying it)
+
+---
+
+## What We've Tried
+
+### Attempt 1: Meta Tag
+- Added `<meta name="referrer" content="unsafe-url">` to HTML `<head>`
+- **Result**: Meta tag is present and readable, but browser shows "not set"
+
+### Attempt 2: JavaScript Setting
+- Tried `document.referrerPolicy = 'unsafe-url'`
+- Tried setting meta tag dynamically via JavaScript
+- **Result**: Still shows "not set"
+
+### Attempt 3: Different Referrer Policies
+- Tried `origin-when-cross-origin`
+- Tried `unsafe-url`
+- Tried `origin`
+- **Result**: None work - policy remains "not set"
+
+### Attempt 4: Cache Busting
+- Updated all CSS/JS cache-busting parameters
+- Added cache-control meta tags
+- **Result**: Files load fresh, but referrer policy issue persists
+
+### Attempt 5: Domain Verification
+- Verified `handyworks.com` is in Firebase authorized domains
+- Removed and re-added domain
+- Waited for propagation (5+ minutes)
+- **Result**: Domain is correctly configured, but still blocked
+
+---
+
+## Key Observations
+
+### What Works
+- ✅ Domain is in Firebase authorized domains list
+- ✅ Origin header is sent correctly (`origin: https://handyworks.com`)
+- ✅ Firebase recognizes the origin (`access-control-allow-origin` response)
+- ✅ Meta tag is present and readable
+- ✅ Security rules are deployed and working
+
+### What Doesn't Work
+- ❌ Referer header is NOT being sent in authentication requests
+- ❌ Browser shows `document.referrerPolicy: "not set"`
+- ❌ Meta tag is ignored/overridden
+- ❌ JavaScript cannot set referrer policy
+
+### Suspected Root Cause
+**GitHub Pages is likely setting a `Referrer-Policy` HTTP header** that overrides:
+- Meta tags
+- JavaScript attempts to set policy
+- Browser default behavior
+
+**Evidence**:
+- Meta tag exists but browser shows "not set"
+- This typically happens when HTTP header overrides HTML meta tag
+- GitHub Pages may set security headers by default
+
+---
+
+## Constraints
+
+### Technical Constraints
+1. **Static Site**: Must remain static HTML (no server-side code)
+2. **GitHub Pages**: Currently hosted on GitHub Pages (may not allow custom headers)
+3. **Firebase Requirement**: Firebase requires Referer header to match authorized domain
+4. **Browser Security**: Modern browsers respect HTTP headers over meta tags
+
+### Business Constraints
+1. **Domain**: Must use `handyworks.com` (custom domain)
+2. **Hosting**: Prefer to stay on GitHub Pages if possible
+3. **Cost**: Prefer free/low-cost solutions
+4. **Complexity**: Prefer simple solutions over complex workarounds
+
+---
+
+## What We Need
+
+### Primary Question
+**How can we make the browser send the Referer header when making Firebase authentication requests from a GitHub Pages-hosted site?**
+
+### Specific Questions
+1. **Is GitHub Pages setting a Referrer-Policy HTTP header?** (Need to verify in Response Headers)
+2. **If yes, can we override it?** (GitHub Pages may not allow custom headers)
+3. **If no override possible, what are the alternatives?**
+   - Move to Firebase Hosting? (Can we control headers there?)
+   - Use a different hosting solution?
+   - Contact Firebase for alternative domain validation?
+4. **Are there other ways to make Firebase accept the domain without Referer header?**
+   - API key + Origin validation?
+   - Different Firebase configuration?
+   - Custom domain setup in Firebase?
+
+### Success Criteria
+- User can successfully login via Firebase Authentication
+- Referer header is sent with authentication requests
+- OR Firebase accepts requests without Referer header
+- Solution works with GitHub Pages (or minimal migration effort)
+
+---
+
+## Additional Context
+
+### Files Involved
+- `billing/admin-login.html` - Login page with Firebase Auth
+- `billing/admin.html` - Dashboard (also has Firebase)
+- `js/config.js` - Firebase configuration
+- `firestore.rules` - Security rules (deployed and working)
+
+### Firebase SDK Version
+- Using: `firebasejs/10.7.1` (compat version)
+
+### Browser Testing
+- Tested in: Microsoft Edge, Chrome
+- Both show same behavior: Referrer Policy "not set"
+
+---
+
+## Next Steps for External Consultation
+
+**Please ask the working Cursor instance**:
+1. How do you handle Firebase Authentication with custom domains?
+2. Do you use GitHub Pages or different hosting?
+3. How do you ensure Referer header is sent?
+4. Are there Firebase configuration options we're missing?
+5. What's the best practice for Firebase Auth with static sites on GitHub Pages?
+
+---
+
 ## Background and Motivation
 
 **PROJECT OVERVIEW - 2025-01-09**
@@ -147,15 +942,16 @@ handyworks-website/
 - [x] Scratchpad created for project tracking
 - [x] Firebase user repository verified and documented
 
-#### **Firestore Security Rules** 🔄 **IN PROGRESS**
+#### **Firestore Security Rules** ✅ **COMPLETE**
 - [x] Security rules file created (`firestore.rules`)
 - [x] Deployment guide created (`scripts/FIRESTORE_SECURITY_RULES.md`)
 - [x] Admin claim script created (`scripts/set_admin_claim.js`)
 - [x] Security rules deployed to Firebase
-- [ ] Admin access tested
-- [ ] User access tested
-- [ ] Test Mode warning resolved
-- [ ] Testing guide created (`scripts/test_security_rules.md`)
+- [x] Firebase authorized domains configured (`handyworks.com`)
+- [x] API key HTTP referrer restrictions fixed
+- [x] API key API restrictions fixed (Identity Toolkit API enabled)
+- [x] Admin access tested and working
+- [x] Test Mode warning resolved (security rules deployed)
 
 ### 🎯 **CURRENT TASK**
 
@@ -230,15 +1026,17 @@ handyworks-website/
 **Documentation Created**:
 - `scripts/FIRESTORE_AUTHORIZED_DOMAINS.md` - Step-by-step guide
 
-**Status**: 🔄 **IN PROGRESS** - Referrer Policy issue being debugged
-- **Root Cause**: Browser `Referrer Policy: no-referrer` preventing Referer header from being sent
-- **Attempted Solutions**: 
-  - Added `<meta name="referrer" content="unsafe-url">` to admin-login.html and admin.html
-  - Added JavaScript to force referrer policy
-  - Added cache-control headers
-  - Updated cache-busting to `?v=20251212` (always update on changes)
-- **Current Issue**: Referrer Policy still shows "not set" in console - likely GitHub Pages HTTP header override
-- **Next Steps**: Check if GitHub Pages sets Referrer-Policy HTTP header, consider Firebase Hosting if needed
+**Status**: ✅ **RESOLVED** - Firebase Authentication Working
+- **Root Cause**: Firebase API key had two restrictions blocking authentication:
+  1. HTTP referrer restrictions (missing `handyworks.com/*`)
+  2. API restrictions (Identity Toolkit API not enabled)
+- **Solution Applied**:
+  1. ✅ Added `handyworks.com/*` to HTTP referrer restrictions
+  2. ✅ Enabled Identity Toolkit API in API key restrictions
+- **Result**: ✅ Authentication now working - user successfully logged in
+- **Documentation**: 
+  - `scripts/FIREBASE_API_KEY_FIX.md` - HTTP referrer restrictions
+  - `scripts/FIREBASE_API_RESTRICTIONS_FIX.md` - API restrictions
 - Domain `handyworks.com` is correctly in authorized domains list
 
 ## Lessons
@@ -254,6 +1052,19 @@ handyworks-website/
 - **Solution**: Ensure write permissions are granted to the folder/directory
 - **Lesson**: Protected folders (like Documents) may require explicit permission grants for file operations
 - **Application**: Always verify folder permissions before attempting file writes
+
+**Firebase API Key Restrictions** ✅ **LEARNED**
+- **Problem**: Firebase Authentication blocked with referrer and API restriction errors
+- **Root Cause**: API key had two restrictions:
+  1. HTTP referrer restrictions - needed `handyworks.com/*` added
+  2. API restrictions - needed Identity Toolkit API enabled
+- **Solution**: Configure both restrictions in Google Cloud Console → APIs & Services → Credentials
+- **Lesson**: Firebase API keys need both domain authorization AND API access configured
+- **Application**: When setting up Firebase Auth, always check:
+  1. Domain is in Firebase authorized domains
+  2. Domain is in API key HTTP referrer restrictions
+  3. Identity Toolkit API is enabled in API key restrictions
+- **Reference**: Same configuration needed as in jetlagpro-website project
 
 ### 📱 **Development Lessons**
 
