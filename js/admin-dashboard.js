@@ -39,6 +39,7 @@
     
     // Stats elements
     const totalUsersEl = document.getElementById('totalUsers');
+    const noInvoiceCountEl = document.getElementById('noInvoiceCount');
     const paidCountEl = document.getElementById('paidCount');
     const pendingCountEl = document.getElementById('pendingCount');
     const overdueCountEl = document.getElementById('overdueCount');
@@ -104,8 +105,29 @@
                 };
             });
             
-            // Calculate payment status for each user
+            // Load 2026 invoices for payment status
+            const currentYear = new Date().getFullYear();
+            const targetYear = currentYear + 1; // 2026 for billing
+            const invoicesSnapshot = await db.collection('handyworks_invoices')
+                .where('year', '==', targetYear)
+                .get();
+            
+            // Create a map of account number to invoice status
+            const invoiceMap = {};
+            invoicesSnapshot.docs.forEach(doc => {
+                const invoice = doc.data();
+                invoiceMap[invoice.acct_num] = {
+                    payment_status: invoice.payment_status || 'pending',
+                    invoice_id: doc.id,
+                    amount: invoice.amount,
+                    due_date: invoice.due_date,
+                    stripe_payment_link_url: invoice.stripe_payment_link_url
+                };
+            });
+            
+            // Calculate payment status for each user (for 2026)
             allUsers.forEach(user => {
+                user.invoice2026 = invoiceMap[user.acct_num] || null;
                 user.paymentStatus = calculatePaymentStatus(user);
             });
             
@@ -123,26 +145,30 @@
         }
     }
     
-    // Calculate payment status
+    // Calculate payment status based on 2026 invoice
     function calculatePaymentStatus(user) {
-        const owed = user.owed || 0;
-        const maint_billed = user.maint_billed || 0;
-        const maint_paid = user.maint_paid || 0;
+        // Check if there's a 2026 invoice for this user
+        if (!user.invoice2026) {
+            return 'no-invoice'; // No invoice generated yet for 2026
+        }
         
-        if (owed <= 0 && maint_paid >= maint_billed) {
+        const invoice = user.invoice2026;
+        
+        // Check invoice payment status
+        if (invoice.payment_status === 'paid') {
             return 'paid';
-        } else if (owed > 0) {
-            // Check if overdue (more than 30 days since bill date)
-            if (user.maintbilldt) {
-                const billDate = user.maintbilldt.toDate ? user.maintbilldt.toDate() : new Date(user.maintbilldt);
-                const daysSinceBill = Math.floor((new Date() - billDate) / (1000 * 60 * 60 * 24));
-                if (daysSinceBill > 30) {
+        } else if (invoice.payment_status === 'pending') {
+            // Check if overdue based on due date
+            if (invoice.due_date) {
+                const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
+                const now = new Date();
+                if (now > dueDate) {
                     return 'overdue';
                 }
             }
             return 'pending';
         } else {
-            return 'pending';
+            return invoice.payment_status; // 'cancelled', etc.
         }
     }
     
@@ -201,9 +227,16 @@
             const row = document.createElement('tr');
             
             const fullName = `${user.fname || ''} ${user.lname || ''}`.trim() || 'N/A';
-            const paymentStatus = user.paymentStatus || 'pending';
+            const paymentStatus = user.paymentStatus || 'no-invoice';
             const statusClass = `status-${paymentStatus}`;
-            const statusText = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1);
+            
+            // Format status text for display
+            let statusText;
+            if (paymentStatus === 'no-invoice') {
+                statusText = 'No Invoice';
+            } else {
+                statusText = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1);
+            }
             
             row.innerHTML = `
                 <td>${user.acct_num || 'N/A'}</td>
@@ -229,12 +262,14 @@
     function updateStats() {
         totalUsersEl.textContent = allUsers.length;
         
-        const paid = allUsers.filter(u => u.paymentStatus === 'paid').length;
+        const noInvoice = allUsers.filter(u => u.paymentStatus === 'no-invoice').length;
         const pending = allUsers.filter(u => u.paymentStatus === 'pending').length;
+        const paid = allUsers.filter(u => u.paymentStatus === 'paid').length;
         const overdue = allUsers.filter(u => u.paymentStatus === 'overdue').length;
         
-        paidCountEl.textContent = paid;
+        noInvoiceCountEl.textContent = noInvoice;
         pendingCountEl.textContent = pending;
+        paidCountEl.textContent = paid;
         overdueCountEl.textContent = overdue;
     }
     
