@@ -7,6 +7,9 @@ scripts/handyworks_data.tsv
 scripts/*.tsv
 scripts/*.csv
 
+# Documentation files (moved to .cursor/)
+scripts/*.md
+
 # API Keys and Secrets (if added to config.js)
 # Note: API keys should be in environment variables, not in code
 
@@ -25,5 +28,6 @@ Thumbs.db
 # Editor files
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo

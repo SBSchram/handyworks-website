@@ -89,6 +89,21 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isAdmin();
     }
     
+    // Collection: handyworks_invoices
+    match /handyworks_invoices/{invoiceId} {
+      // Read: Only admins can read invoices (customers access via Stripe, not Firestore)
+      allow read: if isAuthenticated() && isAdmin();
+      
+      // Write: Only admins can write invoice records
+      allow write: if isAuthenticated() && isAdmin();
+      
+      // Create: Only admins can create invoice records
+      allow create: if isAuthenticated() && isAdmin();
+      
+      // Delete: Only admins can delete invoice records
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
     // Deny all other collections
     match /{document=**} {
       allow read, write: if false;
