@@ -15,14 +15,17 @@
         
         const config = window.HandyWorksConfig;
         
+        // Detect if we're in a subdirectory and adjust paths
+        const pathPrefix = window.location.pathname.includes('/billing/') ? '../' : '';
+        
         // Create navigation HTML from config
         const navItems = config.header.navigation.map(item => 
-            `<li><a href="${item.href}">${item.text}</a></li>`
+            `<li><a href="${pathPrefix}${item.href}">${item.text}</a></li>`
         ).join('\n                    ');
         
         // Create header HTML from config
         const logoHTML = config.header.logo 
-            ? `<a href="index.html" class="logo-link"><img src="${config.header.logo}" alt="${config.header.logoAlt || 'Logo'}" class="site-logo"></a>`
+            ? `<a href="${pathPrefix}index.html" class="logo-link"><img src="${pathPrefix}${config.header.logo}" alt="${config.header.logoAlt || 'Logo'}" class="site-logo"></a>`
             : '';
         
         const headerHTML = `
@@ -46,7 +49,7 @@
         // Add footer links if they exist
         if (config.footer.links && config.footer.links.length > 0) {
             const footerLinks = config.footer.links.map(link => 
-                `<a href="${link.href}">${link.text}</a>`
+                `<a href="${pathPrefix}${link.href}">${link.text}</a>`
             ).join(' | ');
             footerHTML += `<p class="footer-links">${footerLinks}</p>`;
         }

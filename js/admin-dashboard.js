@@ -313,33 +313,140 @@
             alert('User not found');
             return;
         }
+        
+        // Check if modal exists
+        const modal = document.getElementById('invoiceModal');
+        if (!modal) {
+            console.error('Invoice modal not found in DOM');
+            alert('Invoice modal not available. Please refresh the page.');
+            return;
+        }
+        
         openInvoiceModal(user);
     };
     
-    // Invoice Modal Management
-    const invoiceModal = document.getElementById('invoiceModal');
-    const modalClose = document.getElementById('modalClose');
-    const cancelButton = document.getElementById('cancelButton');
-    const generateInvoiceButton = document.getElementById('generateInvoiceButton');
-    const generateButtonText = document.getElementById('generateButtonText');
-    const generateButtonSpinner = document.getElementById('generateButtonSpinner');
-    const invoiceAmountPreset = document.getElementById('invoiceAmountPreset');
-    const invoiceAmount = document.getElementById('invoiceAmount');
-    const invoiceYear = document.getElementById('invoiceYear');
-    const invoiceDescription = document.getElementById('invoiceDescription');
-    const invoiceDueDate = document.getElementById('invoiceDueDate');
-    const modalSuccessMessage = document.getElementById('modalSuccessMessage');
-    const modalErrorMessage = document.getElementById('modalErrorMessage');
-    const paymentLinkResult = document.getElementById('paymentLinkResult');
-    const paymentLinkUrl = document.getElementById('paymentLinkUrl');
-    const emailTemplate = document.getElementById('emailTemplate');
-    const copyLinkButton = document.getElementById('copyLinkButton');
-    const copyEmailButton = document.getElementById('copyEmailButton');
+    // Invoice Modal Management - Initialize lazily
+    let invoiceModal = null;
+    let modalClose = null;
+    let cancelButton = null;
+    let generateInvoiceButton = null;
+    let generateButtonText = null;
+    let generateButtonSpinner = null;
+    let invoiceAmountPreset = null;
+    let invoiceAmount = null;
+    let invoiceYear = null;
+    let invoiceDescription = null;
+    let invoiceDueDate = null;
+    let modalSuccessMessage = null;
+    let modalErrorMessage = null;
+    let paymentLinkResult = null;
+    let paymentLinkUrl = null;
+    let emailTemplate = null;
+    let copyLinkButton = null;
+    let copyEmailButton = null;
     
     let currentUser = null;
+    let modalInitialized = false;
+    
+    // Initialize modal elements and event listeners
+    function initializeModal() {
+        if (modalInitialized) return;
+        
+        invoiceModal = document.getElementById('invoiceModal');
+        modalClose = document.getElementById('modalClose');
+        cancelButton = document.getElementById('cancelButton');
+        generateInvoiceButton = document.getElementById('generateInvoiceButton');
+        generateButtonText = document.getElementById('generateButtonText');
+        generateButtonSpinner = document.getElementById('generateButtonSpinner');
+        invoiceAmountPreset = document.getElementById('invoiceAmountPreset');
+        invoiceAmount = document.getElementById('invoiceAmount');
+        invoiceYear = document.getElementById('invoiceYear');
+        invoiceDescription = document.getElementById('invoiceDescription');
+        invoiceDueDate = document.getElementById('invoiceDueDate');
+        modalSuccessMessage = document.getElementById('modalSuccessMessage');
+        modalErrorMessage = document.getElementById('modalErrorMessage');
+        paymentLinkResult = document.getElementById('paymentLinkResult');
+        paymentLinkUrl = document.getElementById('paymentLinkUrl');
+        emailTemplate = document.getElementById('emailTemplate');
+        copyLinkButton = document.getElementById('copyLinkButton');
+        copyEmailButton = document.getElementById('copyEmailButton');
+        
+        if (!invoiceModal) {
+            console.error('Could not find invoice modal elements');
+            return;
+        }
+        
+        // Set up event listeners
+        modalClose.addEventListener('click', closeInvoiceModal);
+        cancelButton.addEventListener('click', closeInvoiceModal);
+        
+        // Close modal when clicking outside
+        invoiceModal.addEventListener('click', (e) => {
+            if (e.target === invoiceModal) {
+                closeInvoiceModal();
+            }
+        });
+        
+        // Amount preset change handler
+        invoiceAmountPreset.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                invoiceAmount.focus();
+            } else {
+                invoiceAmount.value = e.target.value;
+            }
+        });
+        
+        // Update description when year changes
+        invoiceYear.addEventListener('change', (e) => {
+            invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
+        });
+        
+        // Generate invoice button handler
+        generateInvoiceButton.addEventListener('click', async () => {
+            await generateInvoice();
+        });
+        
+        // Copy buttons
+        copyLinkButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(paymentLinkUrl.textContent)
+                .then(() => {
+                    const originalText = copyLinkButton.textContent;
+                    copyLinkButton.textContent = '✓ Copied!';
+                    setTimeout(() => {
+                        copyLinkButton.textContent = originalText;
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Copy failed:', err);
+                    alert('Failed to copy. Please select and copy manually.');
+                });
+        });
+        
+        copyEmailButton.addEventListener('click', () => {
+            emailTemplate.select();
+            document.execCommand('copy');
+            
+            const originalText = copyEmailButton.textContent;
+            copyEmailButton.textContent = '✓ Copied!';
+            setTimeout(() => {
+                copyEmailButton.textContent = originalText;
+            }, 2000);
+        });
+        
+        modalInitialized = true;
+        console.log('Invoice modal initialized successfully');
+    }
     
     // Open modal with user data
     function openInvoiceModal(user) {
+        // Initialize modal if not already done
+        initializeModal();
+        
+        if (!invoiceModal) {
+            alert('Invoice modal could not be initialized. Please refresh the page.');
+            return;
+        }
+        
         currentUser = user;
         
         // Populate form
@@ -375,35 +482,6 @@
         invoiceModal.classList.remove('active');
         currentUser = null;
     }
-    
-    modalClose.addEventListener('click', closeInvoiceModal);
-    cancelButton.addEventListener('click', closeInvoiceModal);
-    
-    // Close modal when clicking outside
-    invoiceModal.addEventListener('click', (e) => {
-        if (e.target === invoiceModal) {
-            closeInvoiceModal();
-        }
-    });
-    
-    // Amount preset change handler
-    invoiceAmountPreset.addEventListener('change', (e) => {
-        if (e.target.value === 'custom') {
-            invoiceAmount.focus();
-        } else {
-            invoiceAmount.value = e.target.value;
-        }
-    });
-    
-    // Update description when year changes
-    invoiceYear.addEventListener('change', (e) => {
-        invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
-    });
-    
-    // Generate invoice button handler
-    generateInvoiceButton.addEventListener('click', async () => {
-        await generateInvoice();
-    });
     
     // Main invoice generation function
     async function generateInvoice() {
@@ -596,33 +674,6 @@ This is an automated invoice. Please do not reply to this email.`;
         
         showModalSuccess('✅ Invoice created successfully! Copy the payment link or email template below.');
     }
-    
-    // Copy buttons
-    copyLinkButton.addEventListener('click', () => {
-        navigator.clipboard.writeText(paymentLinkUrl.textContent)
-            .then(() => {
-                const originalText = copyLinkButton.textContent;
-                copyLinkButton.textContent = '✓ Copied!';
-                setTimeout(() => {
-                    copyLinkButton.textContent = originalText;
-                }, 2000);
-            })
-            .catch(err => {
-                console.error('Copy failed:', err);
-                alert('Failed to copy. Please select and copy manually.');
-            });
-    });
-    
-    copyEmailButton.addEventListener('click', () => {
-        emailTemplate.select();
-        document.execCommand('copy');
-        
-        const originalText = copyEmailButton.textContent;
-        copyEmailButton.textContent = '✓ Copied!';
-        setTimeout(() => {
-            copyEmailButton.textContent = originalText;
-        }, 2000);
-    });
     
     // Modal message helpers
     function showModalSuccess(message) {
