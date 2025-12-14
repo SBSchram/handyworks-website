@@ -1,7 +1,7 @@
 // Configuration file for DRY principle
 // Single source of truth for cache busting and other settings
 window.HandyWorksConfig = {
-    version: '20251213v3',
+    version: '20251213v4',
     cacheBust: true,
     
     // Header configuration
@@ -47,8 +47,8 @@ window.HandyWorksConfig = {
     stripe: {
         publishableKey: "pk_test_51SUrHgQwduOvSBAvwzESLZuJQK7SwwkCcqWjAQaPa1oAvX0QWWEwUiGE9moXNg5yJeu5V3NLnNIGZuBlIFNvy6uE00JNXqBy2l",
         secretKey: "sk_test_51SUrHgQwduOvSBAv8srnPsP2sFRXX887e6BUDqYdG4K0DJOwbtGkJ6jifrXxr1PV98JwtN9ViLWesVSokrKtmj5500CLLYtkHu",
-        productId: "prod_TRmYEaGZp9ljTX",
-        priceId: "price_1SUszbQpwWRwVGzVy8VmOuV2",
+        productId: "prod_TbIHqgMUQAEuVi",
+        priceId: "price_1Se5gWQwduOvSBAvaev9M9dx",
         // For check payments (optional - $540 instead of $555)
         checkPriceId: null  // Set to price ID if you create a $540 product
     }
