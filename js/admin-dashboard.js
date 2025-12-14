@@ -345,6 +345,15 @@
     let copyLinkButton = null;
     let copyEmailButton = null;
     
+    // Email template editor elements
+    let toggleTemplateEditor = null;
+    let templateEditorSection = null;
+    let templateBusinessAddress = null;
+    let templateBusinessCity = null;
+    let templateBusinessPhone = null;
+    let templateCustomMessage = null;
+    let templateSaveDefaults = null;
+    
     let currentUser = null;
     let modalInitialized = false;
     
@@ -370,6 +379,15 @@
         emailTemplate = document.getElementById('emailTemplate');
         copyLinkButton = document.getElementById('copyLinkButton');
         copyEmailButton = document.getElementById('copyEmailButton');
+        
+        // Email template editor elements
+        toggleTemplateEditor = document.getElementById('toggleTemplateEditor');
+        templateEditorSection = document.getElementById('templateEditorSection');
+        templateBusinessAddress = document.getElementById('templateBusinessAddress');
+        templateBusinessCity = document.getElementById('templateBusinessCity');
+        templateBusinessPhone = document.getElementById('templateBusinessPhone');
+        templateCustomMessage = document.getElementById('templateCustomMessage');
+        templateSaveDefaults = document.getElementById('templateSaveDefaults');
         
         if (!invoiceModal) {
             console.error('Could not find invoice modal elements');
@@ -400,6 +418,16 @@
         invoiceYear.addEventListener('change', (e) => {
             invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
         });
+        
+        // Toggle template editor
+        toggleTemplateEditor.addEventListener('click', () => {
+            const isHidden = templateEditorSection.style.display === 'none';
+            templateEditorSection.style.display = isHidden ? 'block' : 'none';
+            toggleTemplateEditor.textContent = isHidden ? 'Hide Editor' : 'Show Editor';
+        });
+        
+        // Load saved template defaults from localStorage
+        loadTemplateDefaults();
         
         // Generate invoice button handler
         generateInvoiceButton.addEventListener('click', async () => {
@@ -435,6 +463,33 @@
         
         modalInitialized = true;
         console.log('Invoice modal initialized successfully');
+    }
+    
+    // Load template defaults from localStorage
+    function loadTemplateDefaults() {
+        const defaults = localStorage.getItem('handyworks_email_template_defaults');
+        if (defaults) {
+            try {
+                const data = JSON.parse(defaults);
+                templateBusinessAddress.value = data.address || '';
+                templateBusinessCity.value = data.city || '';
+                templateBusinessPhone.value = data.phone || '';
+            } catch (e) {
+                console.error('Error loading template defaults:', e);
+            }
+        }
+    }
+    
+    // Save template defaults to localStorage
+    function saveTemplateDefaults() {
+        if (templateSaveDefaults.checked) {
+            const defaults = {
+                address: templateBusinessAddress.value,
+                city: templateBusinessCity.value,
+                phone: templateBusinessPhone.value
+            };
+            localStorage.setItem('handyworks_email_template_defaults', JSON.stringify(defaults));
+        }
     }
     
     // Open modal with user data
@@ -636,6 +691,18 @@
     
     // Generate email template
     function generateEmailTemplate(invoiceData, paymentLink) {
+        // Get custom template values
+        const address = templateBusinessAddress.value || '[Your Address]';
+        const city = templateBusinessCity.value || '[City, State ZIP]';
+        const phone = templateBusinessPhone.value || '[Your Phone Number]';
+        const customMessage = templateCustomMessage.value.trim();
+        
+        // Save defaults if checkbox is checked
+        saveTemplateDefaults();
+        
+        // Build custom message section
+        const customMessageSection = customMessage ? `\n${customMessage}\n` : '';
+        
         return `Subject: HandyWorks Annual Maintenance Invoice - ${invoiceData.year}
 
 Dear ${invoiceData.customer_name},
@@ -656,15 +723,15 @@ PAYMENT OPTIONS:
 2. PAY BY CHECK ($15 discount - $540):
    Mail check to:
    HandyWorks Software
-   [Your Address]
-   [City, State ZIP]
+   ${address}
+   ${city}
    
    Please include invoice number (INV-${invoiceData.year}-${invoiceData.acct_num}) on check memo line.
 
 3. PAY BY PHONE (Credit Card):
-   Call us at [Your Phone Number] with your credit card information
+   Call us at ${phone} with your credit card information
    and we'll process it securely.
-
+${customMessageSection}
 Thank you for your continued business! We appreciate your support and look forward to serving you in ${invoiceData.year}.
 
 If you have any questions about this invoice, please don't hesitate to contact us.
