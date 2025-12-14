@@ -1,7 +1,7 @@
 // Configuration file for DRY principle
 // Single source of truth for cache busting and other settings
 window.HandyWorksConfig = {
-    version: '20251214v14',
+    version: '20251214v16',
     cacheBust: true,
     
     // Header configuration
@@ -45,17 +45,17 @@ window.HandyWorksConfig = {
     
     // Stripe configuration
     stripe: {
-        // TEST MODE (currently active)
-        publishableKey: "pk_test_51SUrHgQwduOvSBAvwzESLZuJQK7SwwkCcqWjAQaPa1oAvX0QWWEwUiGE9moXNg5yJeu5V3NLnNIGZuBlIFNvy6uE00JNXqBy2l",
-        secretKey: "sk_test_51SUrHgQwduOvSBAv8srnPsP2sFRXX887e6BUDqYdG4K0DJOwbtGkJ6jifrXxr1PV98JwtN9ViLWesVSokrKtmj5500CLLYtkHu",
-        productId: "prod_TbIHqgMUQAEuVi",
-        priceId: "price_1Se5gWQwduOvSBAvaev9M9dx",
+        // LIVE MODE (active)
+        publishableKey: "pk_live_51SUrHJQpwWRwVGzVWV1l917fITkntY4mht7tvji4it8CLq6JjJYS4bxwIvPQWmAmwQ0GL021Su111MExDUjQcsuY00ERGQ92MJ",
+        // secretKey is stored securely in Vercel environment variable (StripeLiveKey)
+        productId: "prod_TRmYEaGZp9ljTX",
+        priceId: "price_1SUszbQpwWRwVGzVy8VmOuV2",
         
-        // LIVE MODE (commented out until ready to go live)
-        // publishableKey: "pk_live_51SUrHJQpwWRwVGzVWV1l917fITkntY4mht7tvji4it8CLq6JjJYS4bxwIvPQWmAmwQ0GL021Su111MExDUjQcsuY00ERGQ92MJ",
-        // secretKey: "sk_live_...", // Set in Firebase Functions environment variables
-        // productId: "prod_...", // Create live product in Stripe Dashboard
-        // priceId: "price_...", // Get from live product
+        // TEST MODE (commented out - for testing only)
+        // publishableKey: "pk_test_51SUrHgQwduOvSBAvwzESLZuJQK7SwwkCcqWjAQaPa1oAvX0QWWEwUiGE9moXNg5yJeu5V3NLnNIGZuBlIFNvy6uE00JNXqBy2l",
+        // secretKey: "sk_test_51SUrHgQwduOvSBAv8srnPsP2sFRXX887e6BUDqYdG4K0DJOwbtGkJ6jifrXxr1PV98JwtN9ViLWesVSokrKtmj5500CLLYtkHu",
+        // productId: "prod_TbIHqgMUQAEuVi",
+        // priceId: "price_1Se5gWQwduOvSBAvaev9M9dx",
         
         // For check payments (optional - $540 instead of $555)
         checkPriceId: null,  // Set to price ID if you create a $540 product
