@@ -536,11 +536,13 @@
     let emailTemplate = null;
     let copyLinkButton = null;
     let copyEmailButton = null;
+    let sendViaGmailButton = null;
     let templateCustomMessage = null;
     let openSettingsLink = null;
     
     let currentUser = null;
     let modalInitialized = false;
+    let currentEmailData = null; // Store email data for Gmail integration
     
     // Initialize modal elements and event listeners
     function initializeModal() {
@@ -564,6 +566,7 @@
         emailTemplate = document.getElementById('emailTemplate');
         copyLinkButton = document.getElementById('copyLinkButton');
         copyEmailButton = document.getElementById('copyEmailButton');
+        sendViaGmailButton = document.getElementById('sendViaGmailButton');
         templateCustomMessage = document.getElementById('templateCustomMessage');
         openSettingsLink = document.getElementById('openSettingsLink');
         
@@ -634,6 +637,24 @@
             setTimeout(() => {
                 copyEmailButton.textContent = originalText;
             }, 2000);
+        });
+        
+        // Send via Gmail button
+        sendViaGmailButton.addEventListener('click', () => {
+            if (!currentEmailData) {
+                alert('Email data not available. Please regenerate the invoice.');
+                return;
+            }
+            
+            // Build Gmail compose URL
+            const gmailUrl = buildGmailComposeUrl(
+                currentEmailData.to,
+                currentEmailData.subject,
+                currentEmailData.body
+            );
+            
+            // Open in new window
+            window.open(gmailUrl, '_blank');
         });
         
         modalInitialized = true;
@@ -910,6 +931,16 @@ ${settings.businessName}
 This is an automated invoice. Please do not reply to this email.`;
     }
     
+    // Build Gmail compose URL
+    function buildGmailComposeUrl(to, subject, body) {
+        const params = new URLSearchParams({
+            to: to,
+            su: subject,
+            body: body
+        });
+        return `https://mail.google.com/mail/?view=cm&fs=1&${params.toString()}`;
+    }
+    
     // Show invoice success with payment link and email template
     function showInvoiceSuccess(paymentLink, emailText) {
         document.getElementById('invoiceForm').style.display = 'none';
@@ -919,7 +950,19 @@ This is an automated invoice. Please do not reply to this email.`;
         paymentLinkUrl.textContent = paymentLink.url;
         emailTemplate.value = emailText;
         
-        showModalSuccess('✅ Invoice created successfully! Copy the payment link or email template below.');
+        // Extract subject and body from email text
+        const lines = emailText.split('\n');
+        const subject = lines[0].replace('Subject: ', '');
+        const body = lines.slice(2).join('\n'); // Skip subject and blank line
+        
+        // Store email data for Gmail integration
+        currentEmailData = {
+            to: currentUser.email,
+            subject: subject,
+            body: body
+        };
+        
+        showModalSuccess('✅ Invoice created successfully! Send via Gmail or copy the template.');
     }
     
     // Modal message helpers
