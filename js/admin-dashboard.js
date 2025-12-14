@@ -492,7 +492,20 @@
         
         // Validate Stripe configuration
         const stripeConfig = window.HandyWorksConfig.stripe;
+        console.log('Stripe Config Check:', {
+            exists: !!stripeConfig,
+            hasSecretKey: !!stripeConfig?.secretKey,
+            secretKeyPreview: stripeConfig?.secretKey?.substring(0, 20) + '...',
+            hasPriceId: !!stripeConfig?.priceId,
+            priceId: stripeConfig?.priceId
+        });
+        
         if (!stripeConfig || !stripeConfig.secretKey || stripeConfig.secretKey.includes('YOUR_')) {
+            console.error('Stripe validation failed:', {
+                configExists: !!stripeConfig,
+                secretKeyExists: !!stripeConfig?.secretKey,
+                containsPlaceholder: stripeConfig?.secretKey?.includes('YOUR_')
+            });
             showModalError('Stripe is not configured. Please add your API keys to js/config.js (see scripts/STRIPE_PAYMENT_LINKS_SETUP.md)');
             return;
         }
