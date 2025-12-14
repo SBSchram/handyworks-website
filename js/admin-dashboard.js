@@ -791,32 +791,32 @@
     }
     
     // Create Stripe Payment Link
+    // Create Stripe Checkout Session (replaces Payment Links for better pre-fill)
     async function createStripePaymentLink(invoiceData) {
         const stripeConfig = window.HandyWorksConfig.stripe;
         
+        // Prepare line items
         const body = new URLSearchParams({
+            'mode': 'payment',
             'line_items[0][price]': stripeConfig.priceId,
             'line_items[0][quantity]': '1',
             // Pre-fill customer information
-            'customer_creation': 'always',
+            'customer_email': invoiceData.customer_email || '',
             'billing_address_collection': 'auto',
             'phone_number_collection[enabled]': 'true',
+            // Success/Cancel URLs (required for Checkout Sessions)
+            'success_url': 'https://handyworks.com/?payment=success',
+            'cancel_url': 'https://handyworks.com/?payment=cancelled',
             // Metadata for tracking
             'metadata[acct_num]': invoiceData.acct_num.toString(),
             'metadata[customer_name]': invoiceData.customer_name,
             'metadata[year]': invoiceData.year.toString(),
             'metadata[invoice_amount]': invoiceData.amount.toString(),
-            // Success message
-            'after_completion[type]': 'hosted_confirmation',
-            'after_completion[hosted_confirmation][custom_message]': 'Thank you for your payment! You will receive a receipt via email. Your HandyWorks maintenance is now active.'
+            // Custom fields for name pre-fill
+            'custom_text[submit][message]': `Payment for ${invoiceData.customer_name} - ${invoiceData.year} Annual Maintenance`
         });
         
-        // Add customer email for pre-fill if available
-        if (invoiceData.customer_email) {
-            body.append('custom_text[submit][message]', `Payment for ${invoiceData.customer_name}`);
-        }
-        
-        const response = await fetch('https://api.stripe.com/v1/payment_links', {
+        const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${stripeConfig.secretKey}`,
@@ -827,7 +827,7 @@
         
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Failed to create payment link');
+            throw new Error(errorData.error?.message || 'Failed to create checkout session');
         }
         
         const data = await response.json();
