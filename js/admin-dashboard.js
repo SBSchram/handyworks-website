@@ -797,13 +797,24 @@
         const body = new URLSearchParams({
             'line_items[0][price]': stripeConfig.priceId,
             'line_items[0][quantity]': '1',
+            // Pre-fill customer information
+            'customer_creation': 'always',
+            'billing_address_collection': 'auto',
+            'phone_number_collection[enabled]': 'true',
+            // Metadata for tracking
             'metadata[acct_num]': invoiceData.acct_num.toString(),
             'metadata[customer_name]': invoiceData.customer_name,
             'metadata[year]': invoiceData.year.toString(),
             'metadata[invoice_amount]': invoiceData.amount.toString(),
+            // Success message
             'after_completion[type]': 'hosted_confirmation',
             'after_completion[hosted_confirmation][custom_message]': 'Thank you for your payment! You will receive a receipt via email. Your HandyWorks maintenance is now active.'
         });
+        
+        // Add customer email for pre-fill if available
+        if (invoiceData.customer_email) {
+            body.append('custom_text[submit][message]', `Payment for ${invoiceData.customer_name}`);
+        }
         
         const response = await fetch('https://api.stripe.com/v1/payment_links', {
             method: 'POST',
@@ -876,13 +887,19 @@
         let greeting;
         if (settings.salutation === 'none') {
             // Use first name only
-            greeting = `Dear ${invoiceData.customer_name.split(' ')[0]},`;
+            greeting = `Hi ${invoiceData.customer_name.split(' ')[0]},`;
         } else {
             // Use title + last name (e.g., "Dr. Smith")
             const nameParts = invoiceData.customer_name.split(' ');
             const lastName = nameParts[nameParts.length - 1];
-            greeting = `Dear ${settings.salutation} ${lastName},`;
+            greeting = `Hi ${settings.salutation} ${lastName},`;
         }
+        
+        // Format phone number (remove formatting, keep digits only, then format)
+        const phoneDigits = settings.phone.replace(/\D/g, '');
+        const formattedPhone = phoneDigits.length === 10 
+            ? `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`
+            : settings.phone;
         
         // Build invoice number section
         const invoiceNumberLine = settings.showInvoiceNumber 
@@ -916,16 +933,15 @@ PAYMENT OPTIONS:
    ${settings.address}
    ${settings.city}${checkMemoLine}
 
-3. PAY BY PHONE (Credit Card):
-   Call us at ${settings.phone} with your credit card information
-   and we'll process it securely.
+3. PAY BY PHONE (Credit Card): Call us at ${formattedPhone} with your credit card information and we'll process it securely.
 ${customMessageSection}
 Thank you for your continued business! We appreciate your support and look forward to serving you in ${invoiceData.year}.
 
 If you have any questions about this invoice, please don't hesitate to contact us.
 
 Best regards,
-${settings.businessName}
+
+Dr. Steve
 
 ---
 This is an automated invoice. Please do not reply to this email.`;
