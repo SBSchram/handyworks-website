@@ -537,8 +537,6 @@
     let copyLinkButton = null;
     let copyEmailButton = null;
     let sendViaGmailButton = null;
-    let templateCustomMessage = null;
-    let openSettingsLink = null;
     
     let currentUser = null;
     let modalInitialized = false;
@@ -558,7 +556,6 @@
         invoiceAmount = document.getElementById('invoiceAmount');
         invoiceYear = document.getElementById('invoiceYear');
         invoiceDescription = document.getElementById('invoiceDescription');
-        invoiceDueDate = document.getElementById('invoiceDueDate');
         modalSuccessMessage = document.getElementById('modalSuccessMessage');
         modalErrorMessage = document.getElementById('modalErrorMessage');
         paymentLinkResult = document.getElementById('paymentLinkResult');
@@ -567,8 +564,6 @@
         copyLinkButton = document.getElementById('copyLinkButton');
         copyEmailButton = document.getElementById('copyEmailButton');
         sendViaGmailButton = document.getElementById('sendViaGmailButton');
-        templateCustomMessage = document.getElementById('templateCustomMessage');
-        openSettingsLink = document.getElementById('openSettingsLink');
         
         if (!invoiceModal) {
             console.error('Could not find invoice modal elements');
@@ -598,13 +593,6 @@
         // Update description when year changes
         invoiceYear.addEventListener('change', (e) => {
             invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
-        });
-        
-        // Open settings from invoice modal
-        openSettingsLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeInvoiceModal();
-            openSettingsModal();
         });
         
         // Generate invoice button handler
@@ -686,11 +674,6 @@
         invoiceAmountPreset.value = '555';
         invoiceDescription.value = `Annual Maintenance ${currentYear + 1}`;
         
-        // Set due date to 30 days from now
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
-        invoiceDueDate.value = dueDate.toISOString().split('T')[0];
-        
         // Reset modal state
         hideModalMessages();
         paymentLinkResult.style.display = 'none';
@@ -747,19 +730,12 @@
             clinic_name: currentUser.clinic || '',
             year: parseInt(invoiceYear.value),
             amount: parseFloat(invoiceAmount.value),
-            description: invoiceDescription.value,
-            due_date: new Date(invoiceDueDate.value),
-            notes: document.getElementById('invoiceNotes').value || null
+            description: invoiceDescription.value
         };
         
         // Validate
         if (!invoiceData.amount || invoiceData.amount <= 0) {
             showModalError('Please enter a valid amount');
-            return;
-        }
-        
-        if (!invoiceData.due_date || isNaN(invoiceData.due_date.getTime())) {
-            showModalError('Please enter a valid due date');
             return;
         }
         
@@ -795,7 +771,42 @@
     async function createStripePaymentLink(invoiceData) {
         const stripeConfig = window.HandyWorksConfig.stripe;
         
-        // Prepare line items
+        // If Cloud Function URL is configured, use it (secure - for production)
+        if (stripeConfig.cloudFunctionUrl) {
+            const response = await fetch(stripeConfig.cloudFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    priceId: stripeConfig.priceId,
+                    acct_num: invoiceData.acct_num,
+                    customer_name: invoiceData.customer_name,
+                    customer_email: invoiceData.customer_email,
+                    year: invoiceData.year,
+                    amount: invoiceData.amount,
+                    description: invoiceData.description
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || errorData.message || 'Failed to create checkout session');
+            }
+            
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to create checkout session');
+            }
+            
+            return {
+                id: data.id,
+                url: data.url
+            };
+        }
+        
+        // Fallback: Direct API call (for test mode only - exposes secret key)
+        // TODO: Remove this once Cloud Function is deployed and working
         const body = new URLSearchParams({
             'mode': 'payment',
             'line_items[0][price]': stripeConfig.priceId,
@@ -849,7 +860,6 @@
             amount: invoiceData.amount,
             description: invoiceData.description,
             invoice_date: firebase.firestore.Timestamp.now(),
-            due_date: firebase.firestore.Timestamp.fromDate(invoiceData.due_date),
             payment_status: 'pending',
             payment_method: null,
             stripe_payment_link_id: paymentLink.id,
@@ -858,7 +868,6 @@
             paid_date: null,
             paid_amount: null,
             transaction_ref: null,
-            payment_notes: invoiceData.notes,
             created_at: firebase.firestore.Timestamp.now(),
             updated_at: firebase.firestore.Timestamp.now(),
             created_by: auth.currentUser?.email || 'admin',
@@ -873,12 +882,6 @@
     function generateEmailTemplate(invoiceData, paymentLink) {
         // Get business settings
         const settings = getBusinessSettings();
-        
-        // Get custom message for this specific customer
-        const customMessage = templateCustomMessage.value.trim();
-        
-        // Build custom message section
-        const customMessageSection = customMessage ? `\n${customMessage}\n` : '';
         
         // Calculate check discount
         const checkDiscount = settings.cardAmount - settings.checkAmount;
@@ -924,7 +927,7 @@ PAYMENT OPTIONS:
 1. PAY ONLINE via Stripe: ${paymentLink.url}
 
 2. PAY BY CHECK ($${checkDiscount.toFixed(0)} discount - $${settings.checkAmount}):
-   TERMS: Payment Due upon receipt
+   Payment Due upon receipt
    Mail check to:
    Chapter 1 Software Inc
    140 E 28th Street
@@ -932,7 +935,9 @@ PAYMENT OPTIONS:
    New York City, NY 10016${checkMemoLine}
 
 3. PAY BY PHONE: Call us at ${formattedPhone} with your credit card information and we'll process it securely.
-${customMessageSection}
+
+4. PAY BY FAX: Send your credit card information to (212) 889-8830. We'll need CC#, expiration date, CV2 code and billing zip code.
+
 We charge maintenance once per calendar year and this invoice covers HandyWork support charges for the current year. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.
 
 Remember that the HandyWorks.com website always has the latest version of our software. We encourage you to stay current.
