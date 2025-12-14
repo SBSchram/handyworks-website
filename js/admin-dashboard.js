@@ -135,6 +135,21 @@
                 user.paymentStatus = calculatePaymentStatus(user);
             });
             
+            // Sort users by last name (ascending), then first name
+            allUsers.sort((a, b) => {
+                const aLname = (a.lname || '').toLowerCase();
+                const bLname = (b.lname || '').toLowerCase();
+                const aFname = (a.fname || '').toLowerCase();
+                const bFname = (b.fname || '').toLowerCase();
+                
+                // Sort by last name first
+                if (aLname !== bLname) {
+                    return aLname.localeCompare(bLname);
+                }
+                // If last names are the same, sort by first name
+                return aFname.localeCompare(bFname);
+            });
+            
             // Update stats
             updateStats();
             

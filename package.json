@@ -6,10 +6,10 @@
     "dev": "vercel dev"
   },
   "dependencies": {
+    "firebase-admin": "^13.6.0",
     "stripe": "^14.10.0"
   },
   "devDependencies": {
     "vercel": "^34.0.0"
   }
 }
-
