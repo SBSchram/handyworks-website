@@ -9,9 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - HandyWorks Billing</title>
-    <link rel="stylesheet" href="../css/style.css?v=20251213v5">
-    <script src="../js/config.js?v=20251213v5"></script>
-    <script src="../js/header-footer.js?v=20251213v5" defer></script>
+    <link rel="stylesheet" href="../css/style.css?v=20251213v7">
+    <script src="../js/config.js?v=20251213v7"></script>
+    <script src="../js/header-footer.js?v=20251213v7" defer></script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -499,7 +499,10 @@
         <div class="admin-dashboard">
             <div class="dashboard-header">
                 <h1>Billing Admin Dashboard</h1>
-                <button class="btn btn-logout" id="logoutButton">Logout</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" id="settingsButton" style="padding: 0.5rem 1rem;">⚙️ Settings</button>
+                    <button class="btn btn-logout" id="logoutButton">Logout</button>
+                </div>
             </div>
             
             <div class="dashboard-stats" id="statsContainer">
@@ -551,11 +554,9 @@
                 <table class="users-table" id="usersTable" style="display: none;">
                     <thead>
                         <tr>
-                            <th>Account #</th>
                             <th>Name</th>
-                            <th>Email</th>
                             <th>Clinic</th>
-                            <th>Status</th>
+                            <th>Email</th>
                             <th>Amount Owed</th>
                             <th>Payment Status</th>
                             <th>Actions</th>
@@ -565,6 +566,80 @@
                     </tbody>
                 </table>
                 <div class="no-data" id="noDataMessage" style="display: none;">No users found.</div>
+            </div>
+        </div>
+        
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>⚙️ Business Settings</h2>
+                    <button class="modal-close" id="settingsModalClose">&times;</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div id="settingsSuccessMessage" class="success-message" style="display: none;"></div>
+                    <div id="settingsErrorMessage" class="error-message-modal" style="display: none;"></div>
+                    
+                    <p style="color: #666; margin-bottom: 1.5rem; font-size: 0.95rem;">
+                        Configure your business information. This will be used in all invoice email templates.
+                    </p>
+                    
+                    <form id="settingsForm">
+                        <div class="form-group">
+                            <label>Business Name</label>
+                            <input type="text" id="settingsBusinessName" placeholder="HandyWorks Software" value="HandyWorks Software">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Street Address</label>
+                            <input type="text" id="settingsBusinessAddress" placeholder="123 Main Street">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>City, State, ZIP</label>
+                            <input type="text" id="settingsBusinessCity" placeholder="Chicago, IL 60601">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="text" id="settingsBusinessPhone" placeholder="(555) 123-4567">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Support Email (Optional)</label>
+                            <input type="email" id="settingsBusinessEmail" placeholder="support@handyworks.com">
+                        </div>
+                        
+                        <div class="form-group" style="border-top: 2px solid #ddd; padding-top: 1rem; margin-top: 1.5rem;">
+                            <label style="font-weight: bold; color: #008080;">Default Invoice Settings</label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Card Payment Amount</label>
+                            <input type="number" id="settingsCardAmount" value="555" step="0.01" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Check Payment Amount (Discounted)</label>
+                            <input type="number" id="settingsCheckAmount" value="540" step="0.01" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Default Payment Terms (Days)</label>
+                            <input type="number" id="settingsPaymentTerms" value="30" min="1" max="365">
+                            <small style="color: #666; font-size: 0.85rem;">Invoice due date will be set to this many days from today</small>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="settingsCancelButton">Cancel</button>
+                    <button type="button" class="btn-generate" id="saveSettingsButton">
+                        <span id="saveSettingsText">Save Settings</span>
+                        <span id="saveSettingsSpinner" class="loading-spinner" style="display: none;"></span>
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -643,43 +718,10 @@
                             <textarea id="invoiceNotes" rows="3" placeholder="Optional notes for your records..."></textarea>
                         </div>
                         
-                        <!-- Email Template Settings -->
-                        <div class="form-group" style="border-top: 2px solid #ddd; padding-top: 1rem; margin-top: 1.5rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                <label style="margin: 0; font-weight: bold; color: #008080;">Email Template Settings</label>
-                                <button type="button" class="btn-secondary" id="toggleTemplateEditor" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
-                                    Show Editor
-                                </button>
-                            </div>
-                            
-                            <div id="templateEditorSection" style="display: none;">
-                                <div class="form-group">
-                                    <label>Your Business Address</label>
-                                    <input type="text" id="templateBusinessAddress" placeholder="123 Main Street">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>City, State, ZIP</label>
-                                    <input type="text" id="templateBusinessCity" placeholder="Chicago, IL 60601">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>Phone Number</label>
-                                    <input type="text" id="templateBusinessPhone" placeholder="(555) 123-4567">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>Custom Message (Optional)</label>
-                                    <textarea id="templateCustomMessage" rows="3" placeholder="Add a personal message to this customer (e.g., 'Thank you for 10 years of business!' or special instructions)"></textarea>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label>
-                                        <input type="checkbox" id="templateSaveDefaults" checked>
-                                        Save address/phone as default for future invoices
-                                    </label>
-                                </div>
-                            </div>
+                        <div class="form-group">
+                            <label>Custom Message for This Customer (Optional)</label>
+                            <textarea id="templateCustomMessage" rows="3" placeholder="Add a personal message to this customer (e.g., 'Thank you for 10 years of business!' or special instructions)"></textarea>
+                            <small style="color: #666; font-size: 0.85rem;">This message will be included in the email. <a href="#" id="openSettingsLink" style="color: #008080;">Edit business info</a></small>
                         </div>
                     </form>
                     
@@ -711,7 +753,7 @@
         <!-- Footer content will be inserted by header-footer.js -->
     </footer>
 
-    <script src="../js/admin-dashboard.js?v=20251213v5"></script>
+    <script src="../js/admin-dashboard.js?v=20251213v7"></script>
 </body>
 </html>
 

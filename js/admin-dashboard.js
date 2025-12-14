@@ -36,6 +36,7 @@
     const logoutButton = document.getElementById('logoutButton');
     const generateBillButton = document.getElementById('generateBillButton');
     const exportButton = document.getElementById('exportButton');
+    const settingsButton = document.getElementById('settingsButton');
     
     // Stats elements
     const totalUsersEl = document.getElementById('totalUsers');
@@ -78,6 +79,9 @@
     
     // Export handler
     exportButton.addEventListener('click', exportToCSV);
+    
+    // Settings handler
+    settingsButton.addEventListener('click', openSettingsModal);
     
     // Load users from Firestore
     async function loadUsers() {
@@ -239,11 +243,9 @@
             }
             
             row.innerHTML = `
-                <td>${user.acct_num || 'N/A'}</td>
                 <td>${fullName}</td>
+                <td>${user.clinic || '<em style="color: #999;">No clinic name</em>'}</td>
                 <td>${user.email || 'N/A'}</td>
-                <td>${user.clinic || 'N/A'}</td>
-                <td>${user.status || 'N/A'}</td>
                 <td>$${formatCurrency(user.owed || 0)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td>
@@ -280,14 +282,12 @@
             return;
         }
         
-        const headers = ['Account #', 'First Name', 'Last Name', 'Email', 'Clinic', 'Status', 'Amount Owed', 'Payment Status'];
+        const headers = ['First Name', 'Last Name', 'Clinic', 'Email', 'Amount Owed', 'Payment Status'];
         const rows = filteredUsers.map(user => [
-            user.acct_num || '',
             user.fname || '',
             user.lname || '',
-            user.email || '',
             user.clinic || '',
-            user.status || '',
+            user.email || '',
             user.owed || 0,
             user.paymentStatus || 'pending'
         ]);
@@ -325,6 +325,183 @@
         openInvoiceModal(user);
     };
     
+    // ====================================================================
+    // SETTINGS MODAL MANAGEMENT
+    // ====================================================================
+    
+    let settingsModal = null;
+    let settingsModalClose = null;
+    let settingsCancelButton = null;
+    let saveSettingsButton = null;
+    let saveSettingsText = null;
+    let saveSettingsSpinner = null;
+    let settingsSuccessMessage = null;
+    let settingsErrorMessage = null;
+    let settingsBusinessName = null;
+    let settingsBusinessAddress = null;
+    let settingsBusinessCity = null;
+    let settingsBusinessPhone = null;
+    let settingsBusinessEmail = null;
+    let settingsCardAmount = null;
+    let settingsCheckAmount = null;
+    let settingsPaymentTerms = null;
+    let settingsInitialized = false;
+    
+    // Initialize settings modal
+    function initializeSettingsModal() {
+        if (settingsInitialized) return;
+        
+        settingsModal = document.getElementById('settingsModal');
+        settingsModalClose = document.getElementById('settingsModalClose');
+        settingsCancelButton = document.getElementById('settingsCancelButton');
+        saveSettingsButton = document.getElementById('saveSettingsButton');
+        saveSettingsText = document.getElementById('saveSettingsText');
+        saveSettingsSpinner = document.getElementById('saveSettingsSpinner');
+        settingsSuccessMessage = document.getElementById('settingsSuccessMessage');
+        settingsErrorMessage = document.getElementById('settingsErrorMessage');
+        settingsBusinessName = document.getElementById('settingsBusinessName');
+        settingsBusinessAddress = document.getElementById('settingsBusinessAddress');
+        settingsBusinessCity = document.getElementById('settingsBusinessCity');
+        settingsBusinessPhone = document.getElementById('settingsBusinessPhone');
+        settingsBusinessEmail = document.getElementById('settingsBusinessEmail');
+        settingsCardAmount = document.getElementById('settingsCardAmount');
+        settingsCheckAmount = document.getElementById('settingsCheckAmount');
+        settingsPaymentTerms = document.getElementById('settingsPaymentTerms');
+        
+        if (!settingsModal) {
+            console.error('Settings modal not found');
+            return;
+        }
+        
+        // Event listeners
+        settingsModalClose.addEventListener('click', closeSettingsModal);
+        settingsCancelButton.addEventListener('click', closeSettingsModal);
+        saveSettingsButton.addEventListener('click', saveSettings);
+        
+        // Close on outside click
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                closeSettingsModal();
+            }
+        });
+        
+        settingsInitialized = true;
+    }
+    
+    // Open settings modal
+    function openSettingsModal() {
+        initializeSettingsModal();
+        
+        if (!settingsModal) {
+            alert('Settings modal could not be initialized. Please refresh the page.');
+            return;
+        }
+        
+        // Load current settings
+        loadSettings();
+        
+        settingsModal.style.display = 'flex';
+        hideSettingsMessages();
+    }
+    
+    // Close settings modal
+    function closeSettingsModal() {
+        if (settingsModal) {
+            settingsModal.style.display = 'none';
+            hideSettingsMessages();
+        }
+    }
+    
+    // Load settings from localStorage
+    function loadSettings() {
+        const settings = getBusinessSettings();
+        settingsBusinessName.value = settings.businessName;
+        settingsBusinessAddress.value = settings.address;
+        settingsBusinessCity.value = settings.city;
+        settingsBusinessPhone.value = settings.phone;
+        settingsBusinessEmail.value = settings.email;
+        settingsCardAmount.value = settings.cardAmount;
+        settingsCheckAmount.value = settings.checkAmount;
+        settingsPaymentTerms.value = settings.paymentTerms;
+    }
+    
+    // Save settings to localStorage
+    function saveSettings() {
+        const settings = {
+            businessName: settingsBusinessName.value.trim(),
+            address: settingsBusinessAddress.value.trim(),
+            city: settingsBusinessCity.value.trim(),
+            phone: settingsBusinessPhone.value.trim(),
+            email: settingsBusinessEmail.value.trim(),
+            cardAmount: parseFloat(settingsCardAmount.value) || 555,
+            checkAmount: parseFloat(settingsCheckAmount.value) || 540,
+            paymentTerms: parseInt(settingsPaymentTerms.value) || 30
+        };
+        
+        // Validate required fields
+        if (!settings.address || !settings.city || !settings.phone) {
+            showSettingsError('Please fill in all required fields (Address, City, Phone)');
+            return;
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('handyworks_business_settings', JSON.stringify(settings));
+        
+        showSettingsSuccess('✅ Settings saved successfully!');
+        
+        // Close modal after 1 second
+        setTimeout(() => {
+            closeSettingsModal();
+        }, 1000);
+    }
+    
+    // Get business settings (with defaults)
+    function getBusinessSettings() {
+        const defaults = {
+            businessName: 'HandyWorks Software',
+            address: '',
+            city: '',
+            phone: '',
+            email: '',
+            cardAmount: 555,
+            checkAmount: 540,
+            paymentTerms: 30
+        };
+        
+        const saved = localStorage.getItem('handyworks_business_settings');
+        if (saved) {
+            try {
+                return { ...defaults, ...JSON.parse(saved) };
+            } catch (e) {
+                console.error('Error loading settings:', e);
+                return defaults;
+            }
+        }
+        return defaults;
+    }
+    
+    // Settings modal message helpers
+    function showSettingsSuccess(message) {
+        settingsSuccessMessage.textContent = message;
+        settingsSuccessMessage.style.display = 'block';
+        settingsErrorMessage.style.display = 'none';
+    }
+    
+    function showSettingsError(message) {
+        settingsErrorMessage.textContent = message;
+        settingsErrorMessage.style.display = 'block';
+        settingsSuccessMessage.style.display = 'none';
+    }
+    
+    function hideSettingsMessages() {
+        if (settingsSuccessMessage) settingsSuccessMessage.style.display = 'none';
+        if (settingsErrorMessage) settingsErrorMessage.style.display = 'none';
+    }
+    
+    // ====================================================================
+    // INVOICE MODAL MANAGEMENT
+    // ====================================================================
+    
     // Invoice Modal Management - Initialize lazily
     let invoiceModal = null;
     let modalClose = null;
@@ -344,15 +521,8 @@
     let emailTemplate = null;
     let copyLinkButton = null;
     let copyEmailButton = null;
-    
-    // Email template editor elements
-    let toggleTemplateEditor = null;
-    let templateEditorSection = null;
-    let templateBusinessAddress = null;
-    let templateBusinessCity = null;
-    let templateBusinessPhone = null;
     let templateCustomMessage = null;
-    let templateSaveDefaults = null;
+    let openSettingsLink = null;
     
     let currentUser = null;
     let modalInitialized = false;
@@ -379,15 +549,8 @@
         emailTemplate = document.getElementById('emailTemplate');
         copyLinkButton = document.getElementById('copyLinkButton');
         copyEmailButton = document.getElementById('copyEmailButton');
-        
-        // Email template editor elements
-        toggleTemplateEditor = document.getElementById('toggleTemplateEditor');
-        templateEditorSection = document.getElementById('templateEditorSection');
-        templateBusinessAddress = document.getElementById('templateBusinessAddress');
-        templateBusinessCity = document.getElementById('templateBusinessCity');
-        templateBusinessPhone = document.getElementById('templateBusinessPhone');
         templateCustomMessage = document.getElementById('templateCustomMessage');
-        templateSaveDefaults = document.getElementById('templateSaveDefaults');
+        openSettingsLink = document.getElementById('openSettingsLink');
         
         if (!invoiceModal) {
             console.error('Could not find invoice modal elements');
@@ -419,15 +582,12 @@
             invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
         });
         
-        // Toggle template editor
-        toggleTemplateEditor.addEventListener('click', () => {
-            const isHidden = templateEditorSection.style.display === 'none';
-            templateEditorSection.style.display = isHidden ? 'block' : 'none';
-            toggleTemplateEditor.textContent = isHidden ? 'Hide Editor' : 'Show Editor';
+        // Open settings from invoice modal
+        openSettingsLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeInvoiceModal();
+            openSettingsModal();
         });
-        
-        // Load saved template defaults from localStorage
-        loadTemplateDefaults();
         
         // Generate invoice button handler
         generateInvoiceButton.addEventListener('click', async () => {
@@ -463,33 +623,6 @@
         
         modalInitialized = true;
         console.log('Invoice modal initialized successfully');
-    }
-    
-    // Load template defaults from localStorage
-    function loadTemplateDefaults() {
-        const defaults = localStorage.getItem('handyworks_email_template_defaults');
-        if (defaults) {
-            try {
-                const data = JSON.parse(defaults);
-                templateBusinessAddress.value = data.address || '';
-                templateBusinessCity.value = data.city || '';
-                templateBusinessPhone.value = data.phone || '';
-            } catch (e) {
-                console.error('Error loading template defaults:', e);
-            }
-        }
-    }
-    
-    // Save template defaults to localStorage
-    function saveTemplateDefaults() {
-        if (templateSaveDefaults.checked) {
-            const defaults = {
-                address: templateBusinessAddress.value,
-                city: templateBusinessCity.value,
-                phone: templateBusinessPhone.value
-            };
-            localStorage.setItem('handyworks_email_template_defaults', JSON.stringify(defaults));
-        }
     }
     
     // Open modal with user data
@@ -691,17 +824,17 @@
     
     // Generate email template
     function generateEmailTemplate(invoiceData, paymentLink) {
-        // Get custom template values
-        const address = templateBusinessAddress.value || '[Your Address]';
-        const city = templateBusinessCity.value || '[City, State ZIP]';
-        const phone = templateBusinessPhone.value || '[Your Phone Number]';
-        const customMessage = templateCustomMessage.value.trim();
+        // Get business settings
+        const settings = getBusinessSettings();
         
-        // Save defaults if checkbox is checked
-        saveTemplateDefaults();
+        // Get custom message for this specific customer
+        const customMessage = templateCustomMessage.value.trim();
         
         // Build custom message section
         const customMessageSection = customMessage ? `\n${customMessage}\n` : '';
+        
+        // Calculate check discount
+        const checkDiscount = settings.cardAmount - settings.checkAmount;
         
         return `Subject: HandyWorks Annual Maintenance Invoice - ${invoiceData.year}
 
@@ -720,16 +853,16 @@ PAYMENT OPTIONS:
    
    This secure payment link is personalized for your account. You can pay with any major credit card.
 
-2. PAY BY CHECK ($15 discount - $540):
+2. PAY BY CHECK ($${checkDiscount.toFixed(0)} discount - $${settings.checkAmount}):
    Mail check to:
-   HandyWorks Software
-   ${address}
-   ${city}
+   ${settings.businessName}
+   ${settings.address}
+   ${settings.city}
    
    Please include invoice number (INV-${invoiceData.year}-${invoiceData.acct_num}) on check memo line.
 
 3. PAY BY PHONE (Credit Card):
-   Call us at ${phone} with your credit card information
+   Call us at ${settings.phone} with your credit card information
    and we'll process it securely.
 ${customMessageSection}
 Thank you for your continued business! We appreciate your support and look forward to serving you in ${invoiceData.year}.
@@ -737,7 +870,7 @@ Thank you for your continued business! We appreciate your support and look forwa
 If you have any questions about this invoice, please don't hesitate to contact us.
 
 Best regards,
-HandyWorks Software
+${settings.businessName}
 
 ---
 This is an automated invoice. Please do not reply to this email.`;
