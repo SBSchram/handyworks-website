@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/createCheckoutSession.js": {
+      "maxDuration": 10
+    }
+  }
+}
+

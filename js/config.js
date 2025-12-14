@@ -1,7 +1,7 @@
 // Configuration file for DRY principle
 // Single source of truth for cache busting and other settings
 window.HandyWorksConfig = {
-    version: '20251214v9',
+    version: '20251214v14',
     cacheBust: true,
     
     // Header configuration
@@ -43,13 +43,25 @@ window.HandyWorksConfig = {
         measurementId: "G-3ZDBCGXH4D"
     },
     
-    // Stripe configuration (Test Mode)
+    // Stripe configuration
     stripe: {
+        // TEST MODE (currently active)
         publishableKey: "pk_test_51SUrHgQwduOvSBAvwzESLZuJQK7SwwkCcqWjAQaPa1oAvX0QWWEwUiGE9moXNg5yJeu5V3NLnNIGZuBlIFNvy6uE00JNXqBy2l",
         secretKey: "sk_test_51SUrHgQwduOvSBAv8srnPsP2sFRXX887e6BUDqYdG4K0DJOwbtGkJ6jifrXxr1PV98JwtN9ViLWesVSokrKtmj5500CLLYtkHu",
         productId: "prod_TbIHqgMUQAEuVi",
         priceId: "price_1Se5gWQwduOvSBAvaev9M9dx",
+        
+        // LIVE MODE (commented out until ready to go live)
+        // publishableKey: "pk_live_51SUrHJQpwWRwVGzVWV1l917fITkntY4mht7tvji4it8CLq6JjJYS4bxwIvPQWmAmwQ0GL021Su111MExDUjQcsuY00ERGQ92MJ",
+        // secretKey: "sk_live_...", // Set in Firebase Functions environment variables
+        // productId: "prod_...", // Create live product in Stripe Dashboard
+        // priceId: "price_...", // Get from live product
+        
         // For check payments (optional - $540 instead of $555)
-        checkPriceId: null  // Set to price ID if you create a $540 product
+        checkPriceId: null,  // Set to price ID if you create a $540 product
+        // Serverless Function URL
+        // Vercel deployment: https://handyworks-website.vercel.app/api/createCheckoutSession
+        // Leave null to use direct API call for test mode (exposes secret key - test only!)
+        cloudFunctionUrl: "https://handyworks-website.vercel.app/api/createCheckoutSession"
     }
 };

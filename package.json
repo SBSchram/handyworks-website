@@ -1,0 +1,15 @@
+{
+  "name": "handyworks-website",
+  "version": "1.0.0",
+  "description": "HandyWorks Website with Billing System",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "stripe": "^14.10.0"
+  },
+  "devDependencies": {
+    "vercel": "^34.0.0"
+  }
+}
+
