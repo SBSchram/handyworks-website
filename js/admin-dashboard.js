@@ -345,6 +345,9 @@
     let settingsCardAmount = null;
     let settingsCheckAmount = null;
     let settingsPaymentTerms = null;
+    let settingsSalutation = null;
+    let settingsShowInvoiceNumber = null;
+    let settingsShowCheckMemo = null;
     let settingsInitialized = false;
     
     // Initialize settings modal
@@ -367,6 +370,9 @@
         settingsCardAmount = document.getElementById('settingsCardAmount');
         settingsCheckAmount = document.getElementById('settingsCheckAmount');
         settingsPaymentTerms = document.getElementById('settingsPaymentTerms');
+        settingsSalutation = document.getElementById('settingsSalutation');
+        settingsShowInvoiceNumber = document.getElementById('settingsShowInvoiceNumber');
+        settingsShowCheckMemo = document.getElementById('settingsShowCheckMemo');
         
         if (!settingsModal) {
             console.error('Settings modal not found');
@@ -423,6 +429,9 @@
         settingsCardAmount.value = settings.cardAmount;
         settingsCheckAmount.value = settings.checkAmount;
         settingsPaymentTerms.value = settings.paymentTerms;
+        settingsSalutation.value = settings.salutation;
+        settingsShowInvoiceNumber.checked = settings.showInvoiceNumber;
+        settingsShowCheckMemo.checked = settings.showCheckMemo;
     }
     
     // Save settings to localStorage
@@ -435,7 +444,10 @@
             email: settingsBusinessEmail.value.trim(),
             cardAmount: parseFloat(settingsCardAmount.value) || 555,
             checkAmount: parseFloat(settingsCheckAmount.value) || 540,
-            paymentTerms: parseInt(settingsPaymentTerms.value) || 30
+            paymentTerms: parseInt(settingsPaymentTerms.value) || 30,
+            salutation: settingsSalutation.value,
+            showInvoiceNumber: settingsShowInvoiceNumber.checked,
+            showCheckMemo: settingsShowCheckMemo.checked
         };
         
         // Validate required fields
@@ -465,7 +477,10 @@
             email: '',
             cardAmount: 555,
             checkAmount: 540,
-            paymentTerms: 30
+            paymentTerms: 30,
+            salutation: 'Dr.',
+            showInvoiceNumber: true,
+            showCheckMemo: true
         };
         
         const saved = localStorage.getItem('handyworks_business_settings');
@@ -836,14 +851,35 @@
         // Calculate check discount
         const checkDiscount = settings.cardAmount - settings.checkAmount;
         
+        // Format customer name based on salutation setting
+        let greeting;
+        if (settings.salutation === 'none') {
+            // Use first name only
+            greeting = `Dear ${invoiceData.customer_name.split(' ')[0]},`;
+        } else {
+            // Use title + last name (e.g., "Dr. Smith")
+            const nameParts = invoiceData.customer_name.split(' ');
+            const lastName = nameParts[nameParts.length - 1];
+            greeting = `Dear ${settings.salutation} ${lastName},`;
+        }
+        
+        // Build invoice number section
+        const invoiceNumberLine = settings.showInvoiceNumber 
+            ? `INVOICE #: INV-${invoiceData.year}-${invoiceData.acct_num}\n` 
+            : '';
+        
+        // Build check memo instruction
+        const checkMemoLine = (settings.showInvoiceNumber && settings.showCheckMemo)
+            ? `\n   Please include invoice number (INV-${invoiceData.year}-${invoiceData.acct_num}) on check memo line.`
+            : '';
+        
         return `Subject: HandyWorks Annual Maintenance Invoice - ${invoiceData.year}
 
-Dear ${invoiceData.customer_name},
+${greeting}
 
 Your annual HandyWorks maintenance fee for ${invoiceData.year} is due.
 
-INVOICE #: INV-${invoiceData.year}-${invoiceData.acct_num}
-AMOUNT DUE: $${invoiceData.amount.toFixed(2)}
+${invoiceNumberLine}AMOUNT DUE: $${invoiceData.amount.toFixed(2)}
 DUE DATE: ${invoiceData.due_date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 
 PAYMENT OPTIONS:
@@ -857,9 +893,7 @@ PAYMENT OPTIONS:
    Mail check to:
    ${settings.businessName}
    ${settings.address}
-   ${settings.city}
-   
-   Please include invoice number (INV-${invoiceData.year}-${invoiceData.acct_num}) on check memo line.
+   ${settings.city}${checkMemoLine}
 
 3. PAY BY PHONE (Credit Card):
    Call us at ${settings.phone} with your credit card information
