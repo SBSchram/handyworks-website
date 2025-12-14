@@ -918,33 +918,32 @@ ${greeting}
 Your annual HandyWorks maintenance fee for ${invoiceData.year} is due.
 
 ${invoiceNumberLine}AMOUNT DUE: $${invoiceData.amount.toFixed(2)}
-DUE DATE: ${invoiceData.due_date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 
 PAYMENT OPTIONS:
 
-1. PAY ONLINE (Credit Card via Stripe):
-   Click here: ${paymentLink.url}
-   
-   This secure payment link is personalized for your account. You can pay with any major credit card.
+1. PAY ONLINE via Stripe: ${paymentLink.url}
 
 2. PAY BY CHECK ($${checkDiscount.toFixed(0)} discount - $${settings.checkAmount}):
+   TERMS: Payment Due upon receipt
    Mail check to:
-   ${settings.businessName}
-   ${settings.address}
-   ${settings.city}${checkMemoLine}
+   Chapter 1 Software Inc
+   140 E 28th Street
+   Suite 1F
+   New York City, NY 10016${checkMemoLine}
 
-3. PAY BY PHONE (Credit Card): Call us at ${formattedPhone} with your credit card information and we'll process it securely.
+3. PAY BY PHONE: Call us at ${formattedPhone} with your credit card information and we'll process it securely.
 ${customMessageSection}
+We charge maintenance once per calendar year and this invoice covers HandyWork support charges for the current year. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.
+
+Remember that the HandyWorks.com website always has the latest version of our software. We encourage you to stay current.
+
 Thank you for your continued business! We appreciate your support and look forward to serving you in ${invoiceData.year}.
 
 If you have any questions about this invoice, please don't hesitate to contact us.
 
 Best regards,
 
-Dr. Steve
-
----
-This is an automated invoice. Please do not reply to this email.`;
+Dr. Steve`;
     }
     
     // Build Gmail compose URL
