@@ -259,7 +259,6 @@
             
             row.innerHTML = `
                 <td>${fullName}</td>
-                <td>${user.clinic || '<em style="color: #999;">No clinic name</em>'}</td>
                 <td>${user.email || 'N/A'}</td>
                 <td>$${formatCurrency(user.owed || 0)}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
@@ -297,11 +296,10 @@
             return;
         }
         
-        const headers = ['First Name', 'Last Name', 'Clinic', 'Email', 'Amount Owed', 'Payment Status'];
+        const headers = ['First Name', 'Last Name', 'Email', 'Amount Owed', 'Payment Status'];
         const rows = filteredUsers.map(user => [
             user.fname || '',
             user.lname || '',
-            user.clinic || '',
             user.email || '',
             user.owed || 0,
             user.paymentStatus || 'pending'
