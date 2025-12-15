@@ -712,27 +712,31 @@
         
         // Validate Stripe configuration
         const stripeConfig = window.HandyWorksConfig.stripe;
-        console.log('Stripe Config Check:', {
-            exists: !!stripeConfig,
-            hasSecretKey: !!stripeConfig?.secretKey,
-            secretKeyPreview: stripeConfig?.secretKey?.substring(0, 20) + '...',
-            hasPriceId: !!stripeConfig?.priceId,
-            priceId: stripeConfig?.priceId
-        });
         
-        if (!stripeConfig || !stripeConfig.secretKey || stripeConfig.secretKey.includes('YOUR_')) {
-            console.error('Stripe validation failed:', {
-                configExists: !!stripeConfig,
-                secretKeyExists: !!stripeConfig?.secretKey,
-                containsPlaceholder: stripeConfig?.secretKey?.includes('YOUR_')
-            });
-            showModalError('Stripe is not configured. Please add your API keys to js/config.js (see scripts/STRIPE_PAYMENT_LINKS_SETUP.md)');
+        if (!stripeConfig) {
+            showModalError('Stripe configuration not found. Please check js/config.js');
             return;
         }
         
-        if (!stripeConfig.priceId || stripeConfig.priceId.includes('YOUR_')) {
-            showModalError('Stripe Price ID is not configured. Please create a product in Stripe Dashboard and add the price ID to js/config.js');
-            return;
+        // If using Vercel function (secure), we don't need secretKey in config
+        // If using direct API (test mode), we need secretKey in config
+        if (stripeConfig.cloudFunctionUrl) {
+            // Using Vercel function - secret key is stored server-side (secure)
+            if (!stripeConfig.priceId || stripeConfig.priceId === null) {
+                showModalError('Stripe Price ID is not configured. Please create a product in Stripe Dashboard and add the price ID to js/config.js');
+                return;
+            }
+        } else {
+            // Using direct API (test mode only) - need secretKey in config
+            if (!stripeConfig.secretKey || stripeConfig.secretKey.includes('YOUR_')) {
+                showModalError('Stripe is not configured. Please add your API keys to js/config.js or configure Vercel function URL.');
+                return;
+            }
+            
+            if (!stripeConfig.priceId || stripeConfig.priceId.includes('YOUR_')) {
+                showModalError('Stripe Price ID is not configured. Please create a product in Stripe Dashboard and add the price ID to js/config.js');
+                return;
+            }
         }
         
         // Get form values
