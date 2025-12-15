@@ -796,7 +796,6 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    priceId: stripeConfig.priceId,
                     acct_num: invoiceData.acct_num,
                     customer_name: invoiceData.customer_name,
                     customer_email: invoiceData.customer_email,
