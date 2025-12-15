@@ -21,6 +21,10 @@ package-lock.json
 .env
 .env.local
 
+# Firebase service account keys (contains sensitive credentials)
+scripts/serviceAccountKey.json
+**/serviceAccountKey.json
+
 # OS files
 .DS_Store
 Thumbs.db
