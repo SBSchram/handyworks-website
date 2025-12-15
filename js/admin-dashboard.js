@@ -553,6 +553,7 @@
     
     let currentUser = null;
     let modalInitialized = false;
+    let currentInvoiceId = null; // Store current invoice ID for marking as paid
     let currentEmailData = null; // Store email data for Gmail integration
     
     // Initialize modal elements and event listeners
@@ -658,6 +659,65 @@
             window.open(gmailUrl, '_blank');
         });
         
+        // Mark as Paid button
+        const markAsPaidButton = document.getElementById('markAsPaidButton');
+        const manualPaymentMethod = document.getElementById('manualPaymentMethod');
+        
+        markAsPaidButton.addEventListener('click', async () => {
+            const paymentMethod = manualPaymentMethod.value;
+            
+            if (!paymentMethod) {
+                alert('Please select a payment method first.');
+                return;
+            }
+            
+            if (!currentInvoiceId) {
+                alert('No invoice found. Please regenerate the invoice first.');
+                return;
+            }
+            
+            const methodNames = {
+                'check': 'Check',
+                'phone_card': 'Phone (Credit Card)',
+                'fax_card': 'Fax (Credit Card)',
+                'cash': 'Cash',
+                'other': 'Other'
+            };
+            
+            const confirm = window.confirm(
+                `Mark this invoice as PAID?\n\n` +
+                `Payment Method: ${methodNames[paymentMethod]}\n` +
+                `Customer: ${currentUser.fname} ${currentUser.lname}\n` +
+                `Amount: $${invoiceAmount.value}\n\n` +
+                `This will update the invoice status to "paid" in the database.`
+            );
+            
+            if (!confirm) return;
+            
+            try {
+                markAsPaidButton.disabled = true;
+                markAsPaidButton.textContent = 'Processing...';
+                
+                await markInvoiceAsPaid(currentInvoiceId, paymentMethod, parseFloat(invoiceAmount.value));
+                
+                showModalSuccess('✅ Invoice marked as PAID successfully!');
+                markAsPaidButton.textContent = '✓ Marked as Paid';
+                markAsPaidButton.style.background = '#6c757d';
+                manualPaymentMethod.disabled = true;
+                
+                // Reload users to update dashboard
+                setTimeout(() => {
+                    loadUsers();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error marking as paid:', error);
+                showModalError(`Failed to mark as paid: ${error.message}`);
+                markAsPaidButton.disabled = false;
+                markAsPaidButton.textContent = '✓ Mark as Paid';
+            }
+        });
+        
         modalInitialized = true;
         console.log('Invoice modal initialized successfully');
     }
@@ -756,6 +816,42 @@
             return;
         }
         
+        // Check for existing invoice (duplicate prevention)
+        try {
+            showModalLoading();
+            const existingInvoice = await checkExistingInvoice(invoiceData.acct_num, invoiceData.year);
+            
+            if (existingInvoice) {
+                hideModalLoading();
+                
+                // Invoice exists - show options
+                const statusText = existingInvoice.payment_status === 'paid' ? 'PAID' : 
+                                 existingInvoice.payment_status === 'pending' ? 'PENDING' : 
+                                 existingInvoice.payment_status.toUpperCase();
+                
+                const message = existingInvoice.payment_status === 'paid' 
+                    ? `An invoice for ${invoiceData.year} already exists for this user and is marked as ${statusText}.\n\nAmount: $${existingInvoice.amount}\nPaid Date: ${existingInvoice.paid_date ? new Date(existingInvoice.paid_date.seconds * 1000).toLocaleDateString() : 'N/A'}\n\nDo you want to create a new invoice anyway?`
+                    : `An invoice for ${invoiceData.year} already exists for this user with status: ${statusText}.\n\nAmount: $${existingInvoice.amount}\nCreated: ${new Date(existingInvoice.created_at.seconds * 1000).toLocaleDateString()}\n\nOptions:\n• Click OK to create a NEW invoice\n• Click Cancel to use the existing invoice`;
+                
+                const createNew = confirm(message);
+                
+                if (!createNew) {
+                    // User chose not to create new - show existing invoice
+                    if (existingInvoice.payment_status === 'pending' && existingInvoice.stripe_payment_link_url) {
+                        showInvoiceSuccess(invoiceData, { url: existingInvoice.stripe_payment_link_url });
+                    } else {
+                        showModalError('Existing invoice is already paid. Closing modal.');
+                        setTimeout(() => closeInvoiceModal(), 2000);
+                    }
+                    return;
+                }
+                // If user clicked OK, continue to create new invoice
+            }
+        } catch (error) {
+            console.error('Error checking for existing invoice:', error);
+            // Continue anyway - don't block invoice creation if check fails
+        }
+        
         // Show loading state
         setGenerateButtonLoading(true);
         hideModalMessages();
@@ -768,6 +864,7 @@
             // Step 2: Save invoice to Firestore
             showModalSuccess('Saving invoice to database...');
             const invoiceId = await saveInvoiceToFirestore(invoiceData, paymentLink);
+            currentInvoiceId = invoiceId; // Store for mark as paid functionality
             
             // Step 3: Generate email template
             const emailText = generateEmailTemplate(invoiceData, paymentLink);
@@ -892,6 +989,53 @@
         
         const docRef = await db.collection('handyworks_invoices').add(invoice);
         return docRef.id;
+    }
+    
+    // Check for existing invoice (duplicate prevention)
+    async function checkExistingInvoice(acctNum, year) {
+        try {
+            const query = db.collection('handyworks_invoices')
+                .where('acct_num', '==', acctNum)
+                .where('year', '==', year)
+                .orderBy('created_at', 'desc')
+                .limit(1);
+            
+            const snapshot = await query.get();
+            
+            if (snapshot.empty) {
+                return null;
+            }
+            
+            const doc = snapshot.docs[0];
+            return {
+                id: doc.id,
+                ...doc.data()
+            };
+        } catch (error) {
+            console.error('Error checking existing invoice:', error);
+            return null;
+        }
+    }
+    
+    // Mark invoice as paid (for manual payments)
+    async function markInvoiceAsPaid(invoiceId, paymentMethod, amount) {
+        try {
+            const updateData = {
+                payment_status: 'paid',
+                payment_method: paymentMethod,
+                paid_date: firebase.firestore.Timestamp.now(),
+                paid_amount: amount,
+                transaction_ref: `manual_${Date.now()}`,
+                updated_at: firebase.firestore.Timestamp.now(),
+                updated_by: auth.currentUser?.email || 'admin',
+            };
+            
+            await db.collection('handyworks_invoices').doc(invoiceId).update(updateData);
+            console.log(`Invoice ${invoiceId} marked as paid via ${paymentMethod}`);
+        } catch (error) {
+            console.error('Error marking invoice as paid:', error);
+            throw error;
+        }
     }
     
     // Generate email template

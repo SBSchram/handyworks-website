@@ -77,8 +77,12 @@ module.exports = async (req, res) => {
       phone_number_collection: {
         enabled: true,
       },
-      success_url: 'https://handyworks.com/?payment=success',
-      cancel_url: 'https://handyworks.com/?payment=cancelled',
+      // Enable automatic email receipt from Stripe
+      payment_intent_data: {
+        receipt_email: invoiceData.customer_email,
+      },
+      success_url: 'https://handyworks.com/payment-success.html?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://handyworks.com/payment-cancelled.html',
       metadata: {
         acct_num: invoiceData.acct_num?.toString() || '',
         customer_name: invoiceData.customer_name || '',
