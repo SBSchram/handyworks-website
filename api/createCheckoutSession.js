@@ -35,12 +35,12 @@ module.exports = async (req, res) => {
     const invoiceData = req.body;
 
     // Validate required fields
-    if (!invoiceData.priceId) {
-      return res.status(400).json({ error: 'Price ID is required' });
-    }
-
     if (!invoiceData.customer_email) {
       return res.status(400).json({ error: 'Customer email is required' });
+    }
+
+    if (!invoiceData.amount) {
+      return res.status(400).json({ error: 'Amount is required' });
     }
 
     // Check if Stripe secret key is configured
@@ -49,12 +49,26 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
-    // Create Stripe Checkout Session
+    // Convert amount to cents (Stripe requires amount in cents)
+    const amountInCents = Math.round(parseFloat(invoiceData.amount) * 100);
+
+    if (amountInCents <= 0) {
+      return res.status(400).json({ error: 'Amount must be greater than 0' });
+    }
+
+    // Create Stripe Checkout Session with custom amount
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [
         {
-          price: invoiceData.priceId,
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `HandyWorks ${invoiceData.year || ''} Annual Maintenance`,
+              description: `Maintenance fee for ${invoiceData.customer_name || 'Customer'}`,
+            },
+            unit_amount: amountInCents,
+          },
           quantity: 1,
         },
       ],
