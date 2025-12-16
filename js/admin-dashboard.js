@@ -818,12 +818,9 @@
         
         // Check for existing invoice (duplicate prevention)
         try {
-            showModalLoading();
             const existingInvoice = await checkExistingInvoice(invoiceData.acct_num, invoiceData.year);
             
             if (existingInvoice) {
-                hideModalLoading();
-                
                 // Invoice exists - show options
                 const statusText = existingInvoice.payment_status === 'paid' ? 'PAID' : 
                                  existingInvoice.payment_status === 'pending' ? 'PENDING' : 
