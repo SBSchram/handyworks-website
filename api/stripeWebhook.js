@@ -12,6 +12,13 @@
  * - FIREBASE_PRIVATE_KEY: Service account private key
  */
 
+// Disable automatic body parsing for this function
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 const stripe = require('stripe')(process.env.StripeLiveKey);
 const admin = require('firebase-admin');
 
@@ -32,6 +39,20 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// Helper function to get raw body
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      resolve(data);
+    });
+    req.on('error', reject);
+  });
+}
+
 module.exports = async (req, res) => {
   // Only allow POST requests
   if (req.method !== 'POST') {
@@ -44,9 +65,12 @@ module.exports = async (req, res) => {
   let event;
 
   try {
+    // Get raw body for signature verification
+    const rawBody = await getRawBody(req);
+    
     // Verify webhook signature
     event = stripe.webhooks.constructEvent(
-      req.body,
+      rawBody,
       sig,
       webhookSecret
     );
