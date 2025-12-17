@@ -493,6 +493,78 @@
         openPaymentModal(user, invoice);
     };
     
+    // Delete payment record
+    window.deletePayment = async function(paymentFirestoreId, invoiceFirestoreId, event) {
+        event.stopPropagation(); // Prevent any parent clicks
+        
+        // Find the payment in current invoice
+        const payment = currentPaymentInvoice?.payments?.find(p => p.id === paymentFirestoreId);
+        
+        if (!payment) {
+            alert('Payment not found');
+            return;
+        }
+        
+        // Confirm deletion
+        const confirmMsg = 
+            `DELETE this payment record?\n\n` +
+            `Amount: $${formatCurrency(payment.amount)}\n` +
+            `Method: ${payment.payment_method || 'Unknown'}\n` +
+            `Date: ${payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A'}\n` +
+            `Reference: ${payment.payment_reference || 'None'}\n` +
+            `Recorded by: ${payment.recorded_by || 'Unknown'}\n\n` +
+            `This will PERMANENTLY DELETE the payment record.\n` +
+            `This action cannot be undone.`;
+        
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+        
+        try {
+            // Hard delete - completely remove from database
+            await db.collection('handyworks_payments').doc(paymentFirestoreId).delete();
+            
+            console.log(`Payment ${paymentFirestoreId} permanently deleted`);
+            
+            // Recalculate invoice status after payment deletion
+            const paymentsSnapshot = await db.collection('handyworks_payments')
+                .where('invoice_id', '==', currentPaymentInvoice.invoice_id)
+                .get();
+            
+            const totalPaid = paymentsSnapshot.docs.reduce((sum, doc) => {
+                return sum + (doc.data().amount || 0);
+            }, 0);
+            
+            // Update invoice status
+            const updateData = {
+                updated_at: firebase.firestore.Timestamp.now(),
+                updated_by: auth.currentUser?.email || 'admin'
+            };
+            
+            if (totalPaid >= currentPaymentInvoice.amount) {
+                updateData.payment_status = 'paid';
+                updateData.paid_date = firebase.firestore.Timestamp.now();
+            } else if (totalPaid === 0) {
+                updateData.payment_status = 'pending';
+                updateData.paid_date = null;
+            }
+            
+            await db.collection('handyworks_invoices').doc(invoiceFirestoreId).update(updateData);
+            
+            // Reload users to refresh display
+            await loadUsers();
+            
+            // Close and reopen modal to show updated data
+            closePaymentModal();
+            
+            alert('Payment deleted successfully.');
+            
+        } catch (error) {
+            console.error('Error deleting payment:', error);
+            alert(`Failed to delete payment: ${error.message}`);
+        }
+    };
+    
     // Delete invoice with confirmation
     window.deleteInvoice = async function(invoiceFirestoreId, invoiceId, acctNum, event) {
         event.stopPropagation(); // Prevent row click
@@ -650,8 +722,12 @@
                 const method = p.payment_method || 'Unknown';
                 const amount = formatCurrency(p.amount || 0);
                 const reference = p.payment_reference ? ` (${p.payment_reference})` : '';
-                return `<div style="padding: 0.25rem 0; border-bottom: 1px solid #ddd;">
-                    ${date}: <strong>$${amount}</strong> via ${method}${reference}
+                const recordedBy = p.recorded_by || 'Unknown';
+                return `<div style="padding: 0.25rem 0; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${date}: <strong>$${amount}</strong> via ${method}${reference} <small style="color: #666;">(by ${recordedBy})</small></span>
+                    <button onclick="deletePayment('${p.id}', '${invoice.id}', event)" 
+                            style="background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.75rem;"
+                            title="Delete payment">Delete</button>
                 </div>`;
             }).join('');
         } else {
