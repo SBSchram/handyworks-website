@@ -510,14 +510,16 @@
         }
         
         // Check if there are any payments
-        if (invoice.payments && invoice.payments.length > 0) {
+        const hasPayments = invoice.payments && invoice.payments.length > 0;
+        
+        if (hasPayments) {
             alert(
                 `Cannot delete invoice with payments.\n\n` +
                 `Invoice: ${invoiceId}\n` +
                 `Amount Billed: $${formatCurrency(invoice.amount)}\n` +
                 `Amount Paid: $${formatCurrency(invoice.totalPaid)}\n` +
                 `Payments: ${invoice.payments.length} payment(s)\n\n` +
-                `Please contact support if you need to delete this invoice.`
+                `You must delete the payment records first.`
             );
             return;
         }
@@ -525,31 +527,28 @@
         // Confirm deletion
         const customerName = `${user.fname} ${user.lname}`.trim();
         const confirmMsg = 
-            `Delete this invoice?\n\n` +
+            `DELETE this invoice?\n\n` +
             `Customer: ${customerName}\n` +
             `Invoice: ${invoiceId}\n` +
             `Amount: $${formatCurrency(invoice.amount)}\n` +
             `Year: ${invoice.year}\n\n` +
-            `This will mark the invoice as CANCELLED (not permanently deleted).`;
+            `This will PERMANENTLY DELETE the invoice from the database.\n` +
+            `This action cannot be undone.`;
         
         if (!confirm(confirmMsg)) {
             return;
         }
         
         try {
-            // Soft delete - mark as cancelled
-            await db.collection('handyworks_invoices').doc(invoiceFirestoreId).update({
-                payment_status: 'cancelled',
-                updated_at: firebase.firestore.Timestamp.now(),
-                updated_by: auth.currentUser?.email || 'admin'
-            });
+            // Hard delete - completely remove from database
+            await db.collection('handyworks_invoices').doc(invoiceFirestoreId).delete();
             
-            console.log(`Invoice ${invoiceId} marked as cancelled`);
+            console.log(`Invoice ${invoiceId} permanently deleted`);
             
             // Reload users to refresh display
             await loadUsers();
             
-            alert('Invoice cancelled successfully.');
+            alert('Invoice deleted successfully.');
             
         } catch (error) {
             console.error('Error deleting invoice:', error);
