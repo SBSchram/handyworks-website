@@ -104,6 +104,21 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isAdmin();
     }
     
+    // Collection: handyworks_payments (NEW - for payment tracking)
+    match /handyworks_payments/{paymentId} {
+      // Read: Only admins can read payment records
+      allow read: if isAuthenticated() && isAdmin();
+      
+      // Write: Only admins can write payment records
+      allow write: if isAuthenticated() && isAdmin();
+      
+      // Create: Only admins can create payment records
+      allow create: if isAuthenticated() && isAdmin();
+      
+      // Delete: Only admins can delete payment records
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
     // Deny all other collections
     match /{document=**} {
       allow read, write: if false;

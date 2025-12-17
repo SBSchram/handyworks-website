@@ -89,15 +89,43 @@
 
 ---
 
-## 🎯 CURRENT TASK: Stripe Payment Integration Planning
+## ✅ COMPLETED: Admin Dashboard - Invoice History & Payment Recording
 
-**Date**: 2025-12-12  
-**Status**: Phase 1 Complete - Phase 2 Planning  
-**Mode**: Executor → Waiting for User Testing
+**Date Completed**: 2025-12-17  
+**Status**: ✅ **IMPLEMENTATION COMPLETE** - Ready for Deployment  
+**Mode**: Executor → User Testing Required
 
-### Background and Motivation
+### Requirements Summary
 
-The billing section is admin-only (no customer-facing login). The goal is to integrate Stripe payment processing to allow Steve to:
+**Current Issues:**
+1. "Amount Owed" column shows static `user.owed` field, doesn't update from invoices
+2. "Generate Bill" button always opens invoice generation modal, even when invoice exists
+3. No way to record manual payments (check, phone CC, etc.) outside of Stripe
+4. No invoice history view - can't see past invoices or partial payments
+5. No way to delete invoices
+
+**New Features Required:**
+1. **Invoice History Column**: Show all invoices per user (compact pills: "2026: $555 | $200 paid | $355 owed [×]")
+2. **Separate Payments Collection**: Create `handyworks_payments` collection to track individual payments (array in doc)
+3. **Smart Actions Button**: Context-aware button (Generate Invoice / Record Payment based on invoice status)
+4. **Payment Recording Modal**: New modal to record manual payments with method, amount, reference
+5. **Invoice Deletion**: Red [×] button on each invoice with confirmation (block if payments exist)
+6. **Auto-calculate Totals**: Automatically calculate paid/owed amounts from payments collection
+7. **Auto-update Status**: Mark invoice as 'paid' when total payments >= billed amount
+8. **Stripe Webhook Integration**: Auto-create payment record when Stripe webhook fires
+
+**Architecture Decisions:**
+- ✅ Use separate `handyworks_payments` collection (not array in invoice)
+- ✅ Store payments as immutable records with audit trail
+- ✅ Soft delete invoices (mark as 'cancelled', not hard delete) 
+- ✅ Block invoice deletion if payments exist
+- ✅ Use today's date for manual payments
+- ✅ Allow replacing unpaid invoices (no payments yet)
+- ✅ One invoice per year per customer (2026, 2025, etc.)
+
+### Background and Motivation (Original Requirements)
+
+The billing section is admin-only (no customer-facing login). The original goal was to integrate Stripe payment processing to allow Steve to:
 1. ✅ Generate payment links for annual maintenance billing ($555/year)
 2. ✅ Send payment links to customers via email
 3. ⏳ Track payment status in Firebase Firestore (automatic via webhooks)
@@ -379,11 +407,203 @@ Please answer these questions so I can refine the implementation plan and create
 
 ---
 
+### High-Level Task Breakdown
+
+#### Phase 1: Database Schema Updates (30 min)
+- [ ] Create `handyworks_payments` collection structure
+- [ ] Update invoice documents to include payment tracking fields
+- [ ] Document payment data structure
+
+#### Phase 2: Backend Logic - Load Invoice History (1 hour)
+- [ ] Update `loadUsers()` to fetch ALL invoices per user (not just 2026)
+- [ ] For each invoice, query and sum payments from `handyworks_payments`
+- [ ] Calculate: `amount_paid`, `amount_owed` per invoice
+- [ ] Auto-update invoice status based on payments
+
+#### Phase 3: UI - Invoice History Column (2 hours)
+- [ ] Replace "Amount Owed" column with "Invoice History" column
+- [ ] Display compact invoice pills (Option A format)
+- [ ] Color-code by status (green=paid, yellow=pending, red=overdue, gray=cancelled)
+- [ ] Add delete [×] button per invoice with confirmation
+- [ ] Show year, billed, paid, owed amounts
+
+#### Phase 4: Smart Actions Button (1 hour)
+- [ ] Update table actions to show context-aware button
+- [ ] "Generate Invoice" when no active invoice for year
+- [ ] "Record Payment" when unpaid invoice exists
+- [ ] Disable/hide when invoice is paid
+
+#### Phase 5: Payment Recording Modal (2-3 hours)
+- [ ] Create new modal HTML in `admin.html`
+- [ ] Show invoice details (read-only)
+- [ ] Payment form: amount, method dropdown, reference field
+- [ ] Validation and error handling
+- [ ] Create payment record in `handyworks_payments`
+- [ ] Refresh dashboard after payment recorded
+
+#### Phase 6: Invoice Deletion (1 hour)
+- [ ] Implement delete invoice function
+- [ ] Check for existing payments (block if any exist)
+- [ ] Soft delete (mark as 'cancelled')
+- [ ] Confirmation dialog with details
+- [ ] Refresh dashboard after deletion
+
+#### Phase 7: Stripe Webhook Enhancement (1 hour)
+- [ ] Update webhook to create payment record in `handyworks_payments`
+- [ ] Link payment to invoice via invoice_id
+- [ ] Auto-update invoice status
+- [ ] Test with Stripe test payments
+
+#### Phase 8: Invoice Generation Enhancement (1 hour)
+- [ ] Check for existing invoices before generation
+- [ ] Block if invoice paid for year
+- [ ] Block if partial payments exist
+- [ ] Allow replacing unpaid invoices (no payments)
+- [ ] Update confirmation dialogs
+
+#### Phase 9: Testing & Refinement (1-2 hours)
+- [ ] Test full payment workflow
+- [ ] Test invoice deletion
+- [ ] Test partial payments
+- [ ] Test invoice replacement
+- [ ] Test Stripe webhook integration
+- [ ] Fix any bugs discovered
+
+**Total Estimated Time**: 10-13 hours
+
+### Implementation Summary
+
+**Date Completed**: 2025-12-17  
+**Status**: ✅ **IMPLEMENTATION COMPLETE** - Ready for Testing
+
+#### What Was Built
+
+**Core Features:**
+1. ✅ New `handyworks_payments` collection for tracking individual payments
+2. ✅ Invoice history column showing all invoices per user (compact pill format)
+3. ✅ Smart action buttons (Generate Invoice / Record Payment based on context)
+4. ✅ Payment recording modal for manual payments (check, phone, fax, cash)
+5. ✅ Invoice deletion with payment check (blocks if payments exist)
+6. ✅ Auto-calculate totals (billed, paid, owed) from payments
+7. ✅ Auto-update invoice status when fully paid
+8. ✅ Stripe webhook integration creates payment records
+9. ✅ Enhanced invoice generation with duplicate/payment checks
+
+**User Workflow Changes:**
+
+**Before:**
+- Single "Amount Owed" column (static)
+- "Generate Bill" button always visible
+- No way to record manual payments
+- No invoice history
+- No payment tracking
+
+**After:**
+- "Invoice History" column showing all invoices with status
+- Smart buttons: "Generate Invoice" OR "Record Payment" OR "Paid ✓"
+- Payment recording modal for manual payments
+- Invoice pills show: Year, Billed, Paid, Owed
+- Delete button [×] on each invoice
+- Partial payment support
+- Full audit trail
+
+**Files Modified:**
+1. ✅ `.cursor/PAYMENTS_COLLECTION_SCHEMA.md` - New collection documentation
+2. ✅ `js/admin-dashboard.js` - Enhanced with payment tracking logic (~300 lines added)
+3. ✅ `billing/admin.html` - Added payment recording modal, updated table headers
+4. ✅ `api/stripeWebhook.js` - Creates payment records when Stripe webhook fires
+5. ✅ `js/config.js` - Updated cache-busting version
+
+**Database Collections:**
+1. `handyworks_invoices` - Existing, enhanced with payment status tracking
+2. `handyworks_payments` - NEW collection for individual payment records
+
+**Key Functions Added:**
+- `formatInvoicePill()` - Display compact invoice pills
+- `recordPaymentForInvoice()` - Open payment modal
+- `deleteInvoice()` - Soft delete with payment check
+- `openPaymentModal()` - Payment recording interface
+- `submitPayment()` - Create payment record in Firestore
+- Enhanced `loadUsers()` - Load all invoices and payments
+- Enhanced `generateInvoice()` - Check for duplicates and partial payments
+
 ### Project Status Board
 
 #### Current Status / Progress Tracking
 
-**Status:** 🚀 Ready to implement - Requirements clarified
+**Status:** ✅ **READY FOR TESTING** - Implementation Complete
+
+#### Testing Instructions
+
+**Prerequisites:**
+1. Deploy updated Firestore security rules for `handyworks_payments` collection
+2. Push code to GitHub
+3. Wait for deployment to GitHub Pages (1-2 minutes)
+
+**Test Scenarios:**
+
+**Test 1: View Invoice History**
+1. Login to admin dashboard
+2. Verify "Invoice History" column shows existing invoices
+3. Verify invoices show as compact pills with year, amounts, delete [×] button
+4. Verify color coding (green=paid, yellow=pending, red=overdue)
+
+**Test 2: Record Manual Payment**
+1. Find user with unpaid invoice
+2. Click "Record Payment" button
+3. Verify payment modal opens with invoice details
+4. Enter payment amount (try partial payment)
+5. Select payment method (check, credit card, etc.)
+6. Add reference and notes
+7. Click "Record Payment"
+8. Verify payment recorded and dashboard updates
+
+**Test 3: Partial Payments**
+1. Record first partial payment ($100 of $555)
+2. Verify invoice shows updated amounts
+3. Record second partial payment ($455)
+4. Verify invoice marked as "Paid" when total reaches billed amount
+
+**Test 4: Invoice Deletion**
+1. Find invoice with NO payments
+2. Click red [×] button
+3. Confirm deletion
+4. Verify invoice marked as cancelled (disappears from display)
+5. Try to delete invoice WITH payments - should be blocked
+
+**Test 5: Generate New Invoice**
+1. Try to generate invoice for year that already has paid invoice
+2. Should be blocked with message
+3. Try to generate invoice for year with partial payments
+4. Should be blocked with message
+5. Try to generate invoice for year with unpaid invoice (no payments)
+6. Should offer to replace - accept
+7. Verify old invoice cancelled, new invoice created
+
+**Test 6: Stripe Payment Integration**
+1. Generate new invoice for test customer
+2. Copy payment link
+3. Test payment with Stripe test card: 4242 4242 4242 4242
+4. Wait for webhook to fire
+5. Verify payment record created in `handyworks_payments`
+6. Verify invoice marked as paid
+7. Verify payment shows in dashboard
+
+**Test 7: Smart Action Buttons**
+1. User with no invoice → Should show "Generate Invoice"
+2. User with unpaid invoice → Should show "Record Payment"
+3. User with paid invoice → Should show "Paid ✓" badge
+
+**Expected Behaviors:**
+- ✅ Invoice history displays all invoices per user
+- ✅ Payments tracked in separate collection
+- ✅ Totals auto-calculated from payments
+- ✅ Invoice status auto-updated when fully paid
+- ✅ Cannot delete invoice with payments
+- ✅ Cannot generate duplicate invoice for paid year
+- ✅ Cannot generate invoice if partial payments exist
+- ✅ Can replace unpaid invoice (no payments)
+- ✅ Stripe webhook creates payment records
 
 **Completed:**
 - ✅ Firebase Authentication working (admin login functional)

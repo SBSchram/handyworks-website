@@ -90,6 +90,8 @@ async function handleCheckoutSessionCompleted(session) {
   const metadata = session.metadata;
   const acctNum = metadata.acct_num;
   const year = metadata.year;
+  const customerName = metadata.customer_name;
+  const customerEmail = session.customer_details?.email || metadata.customer_email || '';
 
   if (!acctNum || !year) {
     console.error('Missing metadata in checkout session');
@@ -101,31 +103,71 @@ async function handleCheckoutSessionCompleted(session) {
   const query = invoicesRef
     .where('acct_num', '==', parseInt(acctNum))
     .where('year', '==', parseInt(year))
-    .where('payment_status', '==', 'pending');
+    .orderBy('created_at', 'desc')
+    .limit(1);
 
   const snapshot = await query.get();
 
   if (snapshot.empty) {
-    console.error(`No pending invoice found for acct_num: ${acctNum}, year: ${year}`);
+    console.error(`No invoice found for acct_num: ${acctNum}, year: ${year}`);
     return;
   }
 
-  // Update the first matching invoice
+  // Get the invoice document
   const invoiceDoc = snapshot.docs[0];
+  const invoiceData = invoiceDoc.data();
+  const invoiceId = invoiceData.invoice_id;
+  const paymentAmount = session.amount_total / 100; // Convert from cents to dollars
+
+  // Create payment record in handyworks_payments collection
+  const paymentData = {
+    invoice_id: invoiceId,
+    acct_num: parseInt(acctNum),
+    customer_name: customerName || 'Unknown',
+    customer_email: customerEmail,
+    amount: paymentAmount,
+    payment_date: admin.firestore.Timestamp.now(),
+    payment_method: 'stripe',
+    payment_reference: session.payment_intent,
+    notes: 'Automatic payment via Stripe',
+    stripe_payment_intent_id: session.payment_intent,
+    stripe_session_id: session.id,
+    recorded_by: 'system_webhook',
+    created_at: admin.firestore.Timestamp.now(),
+    status: 'completed'
+  };
+
+  await db.collection('handyworks_payments').add(paymentData);
+  console.log(`Payment record created for invoice ${invoiceId}`);
+
+  // Calculate total paid for this invoice
+  const paymentsSnapshot = await db.collection('handyworks_payments')
+    .where('invoice_id', '==', invoiceId)
+    .get();
+  
+  const totalPaid = paymentsSnapshot.docs.reduce((sum, doc) => {
+    return sum + (doc.data().amount || 0);
+  }, 0);
+
+  // Update invoice status based on total payments
   const updateData = {
-    payment_status: 'paid',
     stripe_payment_intent_id: session.payment_intent,
     stripe_checkout_session_id: session.id,
-    paid_date: admin.firestore.Timestamp.now(),
-    paid_amount: session.amount_total / 100, // Convert from cents to dollars
-    payment_method: 'stripe_card',
-    transaction_ref: session.payment_intent,
     updated_at: admin.firestore.Timestamp.now(),
     updated_by: 'stripe_webhook',
   };
 
+  // If fully paid, mark as paid
+  if (totalPaid >= invoiceData.amount) {
+    updateData.payment_status = 'paid';
+    updateData.paid_date = admin.firestore.Timestamp.now();
+    console.log(`Invoice ${invoiceId} fully paid (total: $${totalPaid})`);
+  } else {
+    console.log(`Invoice ${invoiceId} partially paid (total: $${totalPaid} of $${invoiceData.amount})`);
+  }
+
   await invoiceDoc.ref.update(updateData);
-  console.log(`Invoice ${invoiceDoc.id} marked as paid`);
+  console.log(`Invoice ${invoiceDoc.id} updated in Firestore`);
 }
 
 /**
