@@ -109,30 +109,79 @@
                 };
             });
             
-            // Load 2026 invoices for payment status
-            const currentYear = new Date().getFullYear();
-            const targetYear = currentYear + 1; // 2026 for billing
+            // Load ALL invoices for all users
             const invoicesSnapshot = await db.collection('handyworks_invoices')
-                .where('year', '==', targetYear)
+                .orderBy('year', 'desc')
                 .get();
             
-            // Create a map of account number to invoice status
-            const invoiceMap = {};
+            // Group invoices by account number
+            const invoicesByAcctNum = {};
             invoicesSnapshot.docs.forEach(doc => {
-                const invoice = doc.data();
-                invoiceMap[invoice.acct_num] = {
-                    payment_status: invoice.payment_status || 'pending',
-                    invoice_id: doc.id,
-                    amount: invoice.amount,
-                    due_date: invoice.due_date,
-                    stripe_payment_link_url: invoice.stripe_payment_link_url
-                };
+                const invoice = { id: doc.id, ...doc.data() };
+                const acctNum = invoice.acct_num;
+                
+                if (!invoicesByAcctNum[acctNum]) {
+                    invoicesByAcctNum[acctNum] = [];
+                }
+                invoicesByAcctNum[acctNum].push(invoice);
             });
             
-            // Calculate payment status for each user (for 2026)
+            // Load ALL payments
+            const paymentsSnapshot = await db.collection('handyworks_payments')
+                .get();
+            
+            // Group payments by invoice_id
+            const paymentsByInvoiceId = {};
+            paymentsSnapshot.docs.forEach(doc => {
+                const payment = { id: doc.id, ...doc.data() };
+                const invoiceId = payment.invoice_id;
+                
+                if (!paymentsByInvoiceId[invoiceId]) {
+                    paymentsByInvoiceId[invoiceId] = [];
+                }
+                paymentsByInvoiceId[invoiceId].push(payment);
+            });
+            
+            // Calculate payment totals and status for each invoice
             allUsers.forEach(user => {
-                user.invoice2026 = invoiceMap[user.acct_num] || null;
-                user.paymentStatus = calculatePaymentStatus(user);
+                const userInvoices = invoicesByAcctNum[user.acct_num] || [];
+                
+                // Process each invoice: calculate paid amount and owed amount
+                user.invoices = userInvoices.map(invoice => {
+                    const payments = paymentsByInvoiceId[invoice.invoice_id] || [];
+                    const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+                    const amountOwed = (invoice.amount || 0) - totalPaid;
+                    
+                    // Determine current payment status
+                    let paymentStatus = invoice.payment_status || 'pending';
+                    
+                    // Auto-update status based on payments
+                    if (totalPaid >= invoice.amount) {
+                        paymentStatus = 'paid';
+                    } else if (paymentStatus !== 'cancelled' && invoice.due_date) {
+                        const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
+                        if (new Date() > dueDate && amountOwed > 0) {
+                            paymentStatus = 'overdue';
+                        }
+                    }
+                    
+                    return {
+                        ...invoice,
+                        payments: payments,
+                        totalPaid: totalPaid,
+                        amountOwed: amountOwed,
+                        paymentStatus: paymentStatus
+                    };
+                });
+                
+                // Sort invoices by year (newest first)
+                user.invoices.sort((a, b) => (b.year || 0) - (a.year || 0));
+                
+                // For backward compatibility, set 2026 invoice and overall payment status
+                const currentYear = new Date().getFullYear();
+                const targetYear = currentYear + 1;
+                user.invoice2026 = user.invoices.find(inv => inv.year === targetYear) || null;
+                user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
             });
             
             // Sort users by last name (ascending), then first name
@@ -246,32 +295,121 @@
             const row = document.createElement('tr');
             
             const fullName = `${user.fname || ''} ${user.lname || ''}`.trim() || 'N/A';
-            const paymentStatus = user.paymentStatus || 'no-invoice';
-            const statusClass = `status-${paymentStatus}`;
             
-            // Format status text for display
-            let statusText;
-            if (paymentStatus === 'no-invoice') {
-                statusText = 'No Invoice';
+            // Build invoice history HTML (compact pills)
+            let invoiceHistoryHTML = '';
+            if (user.invoices && user.invoices.length > 0) {
+                invoiceHistoryHTML = user.invoices
+                    .filter(inv => inv.payment_status !== 'cancelled') // Hide cancelled invoices
+                    .map(inv => formatInvoicePill(inv, user.acct_num))
+                    .join(' ');
+            }
+            
+            if (!invoiceHistoryHTML) {
+                invoiceHistoryHTML = '<span style="color: #999;">No invoices</span>';
+            }
+            
+            // Determine action button
+            const currentYear = new Date().getFullYear();
+            const targetYear = currentYear + 1;
+            const currentYearInvoice = user.invoices?.find(inv => 
+                inv.year === targetYear && inv.payment_status !== 'cancelled'
+            );
+            
+            let actionButton = '';
+            if (!currentYearInvoice) {
+                // No invoice for target year - show Generate Invoice button
+                actionButton = `
+                    <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" 
+                            onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
+                        Generate Invoice
+                    </button>
+                `;
+            } else if (currentYearInvoice.amountOwed > 0) {
+                // Invoice exists with amount owed - show Record Payment button
+                actionButton = `
+                    <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: #28a745; color: white;" 
+                            onclick="recordPaymentForInvoice('${currentYearInvoice.id}', '${user.acct_num}')">
+                        Record Payment
+                    </button>
+                `;
             } else {
-                statusText = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1);
+                // Invoice paid - show paid badge
+                actionButton = `
+                    <span class="status-badge status-paid">✓ Paid</span>
+                `;
             }
             
             row.innerHTML = `
                 <td>${fullName}</td>
                 <td>${user.email || 'N/A'}</td>
-                <td>$${formatCurrency(user.owed || 0)}</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td>
-                    <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" 
-                            onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
-                        Generate Bill
-                    </button>
-                </td>
+                <td style="max-width: 400px;">${invoiceHistoryHTML}</td>
+                <td>${actionButton}</td>
             `;
             
             usersTableBody.appendChild(row);
         });
+    }
+    
+    // Format invoice pill (compact display)
+    function formatInvoicePill(invoice, acctNum) {
+        const year = invoice.year || '?';
+        const billed = invoice.amount || 0;
+        const paid = invoice.totalPaid || 0;
+        const owed = invoice.amountOwed || 0;
+        const status = invoice.paymentStatus || 'pending';
+        
+        // Color based on status
+        let pillColor, textColor;
+        if (status === 'paid') {
+            pillColor = '#d4edda';
+            textColor = '#155724';
+        } else if (status === 'overdue') {
+            pillColor = '#f8d7da';
+            textColor = '#721c24';
+        } else if (status === 'pending') {
+            pillColor = '#fff3cd';
+            textColor = '#856404';
+        } else {
+            pillColor = '#e7e7e7';
+            textColor = '#555';
+        }
+        
+        // Build pill content
+        let content = '';
+        if (status === 'paid') {
+            content = `${year}: PAID ✓`;
+        } else {
+            content = `${year}: $${formatCurrency(billed)} | $${formatCurrency(paid)}↓ | <strong>$${formatCurrency(owed)} owed</strong>`;
+        }
+        
+        return `
+            <span class="invoice-pill" style="
+                display: inline-block;
+                background: ${pillColor};
+                color: ${textColor};
+                padding: 0.35rem 0.75rem;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                margin: 0.15rem;
+                white-space: nowrap;
+                border: 1px solid ${textColor}33;
+            ">
+                ${content}
+                <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${acctNum}', event)" 
+                        style="
+                            background: none;
+                            border: none;
+                            color: ${textColor};
+                            cursor: pointer;
+                            font-weight: bold;
+                            margin-left: 0.5rem;
+                            padding: 0;
+                            font-size: 1rem;
+                        " 
+                        title="Delete invoice">×</button>
+            </span>
+        `;
     }
     
     // Update statistics
@@ -337,6 +475,336 @@
         
         openInvoiceModal(user);
     };
+    
+    // Record payment for existing invoice
+    window.recordPaymentForInvoice = function(invoiceFirestoreId, acctNum) {
+        const user = allUsers.find(u => u.acct_num == acctNum);
+        if (!user) {
+            alert('User not found');
+            return;
+        }
+        
+        const invoice = user.invoices?.find(inv => inv.id === invoiceFirestoreId);
+        if (!invoice) {
+            alert('Invoice not found');
+            return;
+        }
+        
+        openPaymentModal(user, invoice);
+    };
+    
+    // Delete invoice with confirmation
+    window.deleteInvoice = async function(invoiceFirestoreId, invoiceId, acctNum, event) {
+        event.stopPropagation(); // Prevent row click
+        
+        const user = allUsers.find(u => u.acct_num == acctNum);
+        if (!user) {
+            alert('User not found');
+            return;
+        }
+        
+        const invoice = user.invoices?.find(inv => inv.id === invoiceFirestoreId);
+        if (!invoice) {
+            alert('Invoice not found');
+            return;
+        }
+        
+        // Check if there are any payments
+        if (invoice.payments && invoice.payments.length > 0) {
+            alert(
+                `Cannot delete invoice with payments.\n\n` +
+                `Invoice: ${invoiceId}\n` +
+                `Amount Billed: $${formatCurrency(invoice.amount)}\n` +
+                `Amount Paid: $${formatCurrency(invoice.totalPaid)}\n` +
+                `Payments: ${invoice.payments.length} payment(s)\n\n` +
+                `Please contact support if you need to delete this invoice.`
+            );
+            return;
+        }
+        
+        // Confirm deletion
+        const customerName = `${user.fname} ${user.lname}`.trim();
+        const confirmMsg = 
+            `Delete this invoice?\n\n` +
+            `Customer: ${customerName}\n` +
+            `Invoice: ${invoiceId}\n` +
+            `Amount: $${formatCurrency(invoice.amount)}\n` +
+            `Year: ${invoice.year}\n\n` +
+            `This will mark the invoice as CANCELLED (not permanently deleted).`;
+        
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+        
+        try {
+            // Soft delete - mark as cancelled
+            await db.collection('handyworks_invoices').doc(invoiceFirestoreId).update({
+                payment_status: 'cancelled',
+                updated_at: firebase.firestore.Timestamp.now(),
+                updated_by: auth.currentUser?.email || 'admin'
+            });
+            
+            console.log(`Invoice ${invoiceId} marked as cancelled`);
+            
+            // Reload users to refresh display
+            await loadUsers();
+            
+            alert('Invoice cancelled successfully.');
+            
+        } catch (error) {
+            console.error('Error deleting invoice:', error);
+            alert(`Failed to delete invoice: ${error.message}`);
+        }
+    };
+    
+    // ====================================================================
+    // PAYMENT RECORDING MODAL MANAGEMENT
+    // ====================================================================
+    
+    let paymentModal = null;
+    let paymentModalClose = null;
+    let paymentCancelButton = null;
+    let recordPaymentButton = null;
+    let recordPaymentText = null;
+    let recordPaymentSpinner = null;
+    let paymentSuccessMessage = null;
+    let paymentErrorMessage = null;
+    let paymentAmount = null;
+    let paymentMethod = null;
+    let paymentReference = null;
+    let paymentNotes = null;
+    let currentPaymentInvoice = null;
+    let currentPaymentUser = null;
+    let paymentModalInitialized = false;
+    
+    // Initialize payment modal
+    function initializePaymentModal() {
+        if (paymentModalInitialized) return;
+        
+        paymentModal = document.getElementById('paymentModal');
+        paymentModalClose = document.getElementById('paymentModalClose');
+        paymentCancelButton = document.getElementById('paymentCancelButton');
+        recordPaymentButton = document.getElementById('recordPaymentButton');
+        recordPaymentText = document.getElementById('recordPaymentText');
+        recordPaymentSpinner = document.getElementById('recordPaymentSpinner');
+        paymentSuccessMessage = document.getElementById('paymentSuccessMessage');
+        paymentErrorMessage = document.getElementById('paymentErrorMessage');
+        paymentAmount = document.getElementById('paymentAmount');
+        paymentMethod = document.getElementById('paymentMethod');
+        paymentReference = document.getElementById('paymentReference');
+        paymentNotes = document.getElementById('paymentNotes');
+        
+        if (!paymentModal) {
+            console.error('Payment modal not found');
+            return;
+        }
+        
+        // Event listeners
+        paymentModalClose.addEventListener('click', closePaymentModal);
+        paymentCancelButton.addEventListener('click', closePaymentModal);
+        recordPaymentButton.addEventListener('click', submitPayment);
+        
+        // Close on outside click
+        paymentModal.addEventListener('click', (e) => {
+            if (e.target === paymentModal) {
+                closePaymentModal();
+            }
+        });
+        
+        // Auto-select amount field on open
+        paymentAmount.addEventListener('focus', function() {
+            this.select();
+        });
+        
+        paymentModalInitialized = true;
+    }
+    
+    // Open payment modal
+    function openPaymentModal(user, invoice) {
+        initializePaymentModal();
+        
+        if (!paymentModal) {
+            alert('Payment modal could not be initialized. Please refresh the page.');
+            return;
+        }
+        
+        currentPaymentUser = user;
+        currentPaymentInvoice = invoice;
+        
+        // Populate invoice details
+        const customerName = `${user.fname} ${user.lname}`.trim();
+        document.getElementById('paymentCustomerName').textContent = customerName;
+        document.getElementById('paymentInvoiceId').textContent = invoice.invoice_id || 'N/A';
+        document.getElementById('paymentYear').textContent = invoice.year || 'N/A';
+        document.getElementById('paymentBilled').textContent = `$${formatCurrency(invoice.amount || 0)}`;
+        document.getElementById('paymentPaidSoFar').textContent = `$${formatCurrency(invoice.totalPaid || 0)}`;
+        document.getElementById('paymentOwed').textContent = `$${formatCurrency(invoice.amountOwed || 0)}`;
+        
+        // Show payment history if exists
+        const paymentHistorySection = document.getElementById('paymentHistorySection');
+        const paymentHistoryList = document.getElementById('paymentHistoryList');
+        
+        if (invoice.payments && invoice.payments.length > 0) {
+            paymentHistorySection.style.display = 'block';
+            paymentHistoryList.innerHTML = invoice.payments.map(p => {
+                const date = p.payment_date?.toDate ? p.payment_date.toDate().toLocaleDateString() : 'N/A';
+                const method = p.payment_method || 'Unknown';
+                const amount = formatCurrency(p.amount || 0);
+                const reference = p.payment_reference ? ` (${p.payment_reference})` : '';
+                return `<div style="padding: 0.25rem 0; border-bottom: 1px solid #ddd;">
+                    ${date}: <strong>$${amount}</strong> via ${method}${reference}
+                </div>`;
+            }).join('');
+        } else {
+            paymentHistorySection.style.display = 'none';
+        }
+        
+        // Pre-fill amount with remaining owed
+        paymentAmount.value = (invoice.amountOwed || 0).toFixed(2);
+        paymentMethod.value = '';
+        paymentReference.value = '';
+        paymentNotes.value = '';
+        
+        // Reset state
+        hidePaymentMessages();
+        recordPaymentButton.disabled = false;
+        
+        // Show modal
+        paymentModal.style.display = 'flex';
+        
+        // Focus amount field
+        setTimeout(() => paymentAmount.focus(), 100);
+    }
+    
+    // Close payment modal
+    function closePaymentModal() {
+        if (paymentModal) {
+            paymentModal.style.display = 'none';
+            currentPaymentUser = null;
+            currentPaymentInvoice = null;
+        }
+    }
+    
+    // Submit payment
+    async function submitPayment() {
+        if (!currentPaymentUser || !currentPaymentInvoice) {
+            showPaymentError('No invoice selected');
+            return;
+        }
+        
+        // Validate form
+        const amount = parseFloat(paymentAmount.value);
+        const method = paymentMethod.value;
+        
+        if (!amount || amount <= 0) {
+            showPaymentError('Please enter a valid payment amount');
+            paymentAmount.focus();
+            return;
+        }
+        
+        if (!method) {
+            showPaymentError('Please select a payment method');
+            paymentMethod.focus();
+            return;
+        }
+        
+        // Confirm payment
+        const confirmMsg = 
+            `Record this payment?\n\n` +
+            `Customer: ${currentPaymentUser.fname} ${currentPaymentUser.lname}\n` +
+            `Invoice: ${currentPaymentInvoice.invoice_id}\n` +
+            `Amount: $${amount.toFixed(2)}\n` +
+            `Method: ${method}\n` +
+            `Reference: ${paymentReference.value || '(none)'}\n\n` +
+            `This will create a payment record in the database.`;
+        
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+        
+        try {
+            setRecordPaymentLoading(true);
+            hidePaymentMessages();
+            
+            // Create payment record
+            const paymentData = {
+                invoice_id: currentPaymentInvoice.invoice_id,
+                acct_num: currentPaymentUser.acct_num,
+                customer_name: `${currentPaymentUser.fname} ${currentPaymentUser.lname}`.trim(),
+                customer_email: currentPaymentUser.email || '',
+                amount: amount,
+                payment_date: firebase.firestore.Timestamp.now(),
+                payment_method: method,
+                payment_reference: paymentReference.value.trim() || '',
+                notes: paymentNotes.value.trim() || '',
+                stripe_payment_intent_id: null,
+                stripe_session_id: null,
+                recorded_by: auth.currentUser?.email || 'admin',
+                created_at: firebase.firestore.Timestamp.now(),
+                status: 'completed'
+            };
+            
+            await db.collection('handyworks_payments').add(paymentData);
+            
+            console.log('Payment recorded successfully:', paymentData);
+            
+            // Update invoice status if fully paid
+            const newTotalPaid = (currentPaymentInvoice.totalPaid || 0) + amount;
+            if (newTotalPaid >= currentPaymentInvoice.amount) {
+                await db.collection('handyworks_invoices').doc(currentPaymentInvoice.id).update({
+                    payment_status: 'paid',
+                    paid_date: firebase.firestore.Timestamp.now(),
+                    updated_at: firebase.firestore.Timestamp.now(),
+                    updated_by: auth.currentUser?.email || 'admin'
+                });
+                console.log('Invoice marked as paid');
+            }
+            
+            showPaymentSuccess('✅ Payment recorded successfully!');
+            
+            // Reload users after 1 second
+            setTimeout(async () => {
+                await loadUsers();
+                closePaymentModal();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error recording payment:', error);
+            showPaymentError(`Failed to record payment: ${error.message}`);
+        } finally {
+            setRecordPaymentLoading(false);
+        }
+    }
+    
+    // Payment modal message helpers
+    function showPaymentSuccess(message) {
+        paymentSuccessMessage.textContent = message;
+        paymentSuccessMessage.style.display = 'block';
+        paymentErrorMessage.style.display = 'none';
+    }
+    
+    function showPaymentError(message) {
+        paymentErrorMessage.textContent = message;
+        paymentErrorMessage.style.display = 'block';
+        paymentSuccessMessage.style.display = 'none';
+    }
+    
+    function hidePaymentMessages() {
+        if (paymentSuccessMessage) paymentSuccessMessage.style.display = 'none';
+        if (paymentErrorMessage) paymentErrorMessage.style.display = 'none';
+    }
+    
+    function setRecordPaymentLoading(isLoading) {
+        if (isLoading) {
+            recordPaymentText.style.display = 'none';
+            recordPaymentSpinner.style.display = 'inline-block';
+            recordPaymentButton.disabled = true;
+        } else {
+            recordPaymentText.style.display = 'inline';
+            recordPaymentSpinner.style.display = 'none';
+            recordPaymentButton.disabled = false;
+        }
+    }
     
     // ====================================================================
     // SETTINGS MODAL MANAGEMENT
@@ -816,7 +1284,7 @@
             return;
         }
         
-        // Check for existing invoice (duplicate prevention)
+        // Check for existing invoice (enhanced with payment checking)
         try {
             showModalLoading();
             const existingInvoice = await checkExistingInvoice(invoiceData.acct_num, invoiceData.year);
@@ -824,32 +1292,89 @@
             if (existingInvoice) {
                 hideModalLoading();
                 
-                // Invoice exists - show options
+                // Get payments for this invoice
+                const paymentsSnapshot = await db.collection('handyworks_payments')
+                    .where('invoice_id', '==', existingInvoice.invoice_id)
+                    .get();
+                
+                const payments = paymentsSnapshot.docs.map(doc => doc.data());
+                const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+                const amountOwed = existingInvoice.amount - totalPaid;
+                
                 const statusText = existingInvoice.payment_status === 'paid' ? 'PAID' : 
                                  existingInvoice.payment_status === 'pending' ? 'PENDING' : 
+                                 existingInvoice.payment_status === 'cancelled' ? 'CANCELLED' :
                                  existingInvoice.payment_status.toUpperCase();
                 
-                const message = existingInvoice.payment_status === 'paid' 
-                    ? `An invoice for ${invoiceData.year} already exists for this user and is marked as ${statusText}.\n\nAmount: $${existingInvoice.amount}\nPaid Date: ${existingInvoice.paid_date ? new Date(existingInvoice.paid_date.seconds * 1000).toLocaleDateString() : 'N/A'}\n\nDo you want to create a new invoice anyway?`
-                    : `An invoice for ${invoiceData.year} already exists for this user with status: ${statusText}.\n\nAmount: $${existingInvoice.amount}\nCreated: ${new Date(existingInvoice.created_at.seconds * 1000).toLocaleDateString()}\n\nOptions:\n• Click OK to create a NEW invoice\n• Click Cancel to use the existing invoice`;
-                
-                const createNew = confirm(message);
-                
-                if (!createNew) {
-                    // User chose not to create new - show existing invoice
-                    if (existingInvoice.payment_status === 'pending' && existingInvoice.stripe_payment_link_url) {
-                        showInvoiceSuccess(invoiceData, { url: existingInvoice.stripe_payment_link_url });
-                    } else {
-                        showModalError('Existing invoice is already paid. Closing modal.');
-                        setTimeout(() => closeInvoiceModal(), 2000);
-                    }
+                // Block if invoice is fully paid
+                if (existingInvoice.payment_status === 'paid' || amountOwed <= 0) {
+                    showModalError(
+                        `Cannot create new invoice: ${invoiceData.year} invoice is already PAID.\n\n` +
+                        `Amount Billed: $${existingInvoice.amount}\n` +
+                        `Amount Paid: $${totalPaid.toFixed(2)}\n\n` +
+                        `This customer has already paid for ${invoiceData.year}.`
+                    );
+                    setTimeout(() => closeInvoiceModal(), 3000);
                     return;
+                }
+                
+                // Block if there are partial payments
+                if (payments.length > 0 && totalPaid > 0) {
+                    showModalError(
+                        `Cannot create new invoice: Existing invoice has PARTIAL PAYMENTS.\n\n` +
+                        `Invoice: ${existingInvoice.invoice_id}\n` +
+                        `Amount Billed: $${existingInvoice.amount}\n` +
+                        `Amount Paid: $${totalPaid.toFixed(2)}\n` +
+                        `Amount Owed: $${amountOwed.toFixed(2)}\n` +
+                        `Payments: ${payments.length} payment(s)\n\n` +
+                        `Please either:\n` +
+                        `• Record remaining payments on existing invoice\n` +
+                        `• Delete existing invoice first (will lose payment history)`
+                    );
+                    setTimeout(() => closeInvoiceModal(), 5000);
+                    return;
+                }
+                
+                // Allow replacing if cancelled or pending with no payments
+                if (existingInvoice.payment_status === 'cancelled' || payments.length === 0) {
+                    const message = 
+                        `An invoice for ${invoiceData.year} already exists with status: ${statusText}.\n\n` +
+                        `Invoice: ${existingInvoice.invoice_id}\n` +
+                        `Amount: $${existingInvoice.amount}\n` +
+                        `Created: ${new Date(existingInvoice.created_at.seconds * 1000).toLocaleDateString()}\n` +
+                        `Payments: ${payments.length}\n\n` +
+                        `Do you want to REPLACE this invoice with a new one?\n` +
+                        `(The old invoice will be marked as cancelled)`;
+                    
+                    const replaceInvoice = confirm(message);
+                    
+                    if (!replaceInvoice) {
+                        // User chose not to replace - show existing invoice if it has a payment link
+                        if (existingInvoice.payment_status === 'pending' && existingInvoice.stripe_payment_link_url) {
+                            showInvoiceSuccess({ url: existingInvoice.stripe_payment_link_url }, generateEmailTemplate(invoiceData, { url: existingInvoice.stripe_payment_link_url }));
+                            currentInvoiceId = existingInvoice.id;
+                        } else {
+                            showModalError('Cancelled. Use the existing invoice or delete it first.');
+                            setTimeout(() => closeInvoiceModal(), 2000);
+                        }
+                        return;
+                    }
+                    
+                    // Mark old invoice as cancelled
+                    await db.collection('handyworks_invoices').doc(existingInvoice.id).update({
+                        payment_status: 'cancelled',
+                        updated_at: firebase.firestore.Timestamp.now(),
+                        updated_by: auth.currentUser?.email || 'admin'
+                    });
+                    
+                    console.log(`Old invoice ${existingInvoice.invoice_id} marked as cancelled`);
                 }
                 // If user clicked OK, continue to create new invoice
             }
         } catch (error) {
             console.error('Error checking for existing invoice:', error);
-            // Continue anyway - don't block invoice creation if check fails
+            showModalError(`Error checking for existing invoice: ${error.message}`);
+            return;
         }
         
         // Show loading state
@@ -991,9 +1516,10 @@
         return docRef.id;
     }
     
-    // Check for existing invoice (duplicate prevention)
+    // Check for existing invoice (finds active and cancelled invoices)
     async function checkExistingInvoice(acctNum, year) {
         try {
+            // Get all invoices for this account and year (including cancelled)
             const query = db.collection('handyworks_invoices')
                 .where('acct_num', '==', acctNum)
                 .where('year', '==', year)
