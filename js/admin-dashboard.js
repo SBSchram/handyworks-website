@@ -1082,8 +1082,6 @@
     let generateButtonSpinner = null;
     let invoiceAmountPreset = null;
     let invoiceAmount = null;
-    let invoiceYear = null;
-    let invoiceDescription = null;
     let invoiceDueDate = null;
     let modalSuccessMessage = null;
     let modalErrorMessage = null;
@@ -1111,8 +1109,6 @@
         generateButtonSpinner = document.getElementById('generateButtonSpinner');
         invoiceAmountPreset = document.getElementById('invoiceAmountPreset');
         invoiceAmount = document.getElementById('invoiceAmount');
-        invoiceYear = document.getElementById('invoiceYear');
-        invoiceDescription = document.getElementById('invoiceDescription');
         modalSuccessMessage = document.getElementById('modalSuccessMessage');
         modalErrorMessage = document.getElementById('modalErrorMessage');
         paymentLinkResult = document.getElementById('paymentLinkResult');
@@ -1145,11 +1141,6 @@
             } else {
                 invoiceAmount.value = e.target.value;
             }
-        });
-        
-        // Update description when year changes
-        invoiceYear.addEventListener('change', (e) => {
-            invoiceDescription.value = `Annual Maintenance ${e.target.value}`;
         });
         
         // Generate invoice button handler
@@ -1281,14 +1272,10 @@
         document.getElementById('invoiceAcctNum').value = user.acct_num || '';
         document.getElementById('invoiceName').value = `${user.fname || ''} ${user.lname || ''}`.trim();
         document.getElementById('invoiceEmail').value = user.email || '';
-        document.getElementById('invoiceClinic').value = user.clinic || '';
         
         // Set defaults
-        const currentYear = new Date().getFullYear();
-        invoiceYear.value = currentYear + 1; // Default to next year
         invoiceAmount.value = '555';
         invoiceAmountPreset.value = '555';
-        invoiceDescription.value = `Annual Maintenance ${currentYear + 1}`;
         
         // Reset modal state
         hideModalMessages();
@@ -1343,14 +1330,16 @@
         }
         
         // Get form values
+        const currentYear = new Date().getFullYear();
+        const billingYear = currentYear + 1; // We always bill next year
         const invoiceData = {
             acct_num: currentUser.acct_num,
             customer_name: `${currentUser.fname || ''} ${currentUser.lname || ''}`.trim(),
             customer_email: currentUser.email || '',
-            clinic_name: currentUser.clinic || '',
-            year: parseInt(invoiceYear.value),
+            clinic_name: currentUser.clinic || '', // Keep for database if present, not shown in form
+            year: billingYear,
             amount: parseFloat(invoiceAmount.value),
-            description: invoiceDescription.value
+            description: `Annual Maintenance ${billingYear}`
         };
         
         // Validate
@@ -1426,8 +1415,12 @@
                     if (!replaceInvoice) {
                         // User chose not to replace - show existing invoice if it has a payment link
                         if (existingInvoice.payment_status === 'pending' && existingInvoice.stripe_payment_link_url) {
-                            showInvoiceSuccess({ url: existingInvoice.stripe_payment_link_url }, generateEmailTemplate(invoiceData, { url: existingInvoice.stripe_payment_link_url }));
                             currentInvoiceId = existingInvoice.id;
+                            showInvoiceSuccess(
+                                { url: existingInvoice.stripe_payment_link_url },
+                                generateEmailTemplate(invoiceData, { url: existingInvoice.stripe_payment_link_url }),
+                                true
+                            );
                         } else {
                             showModalError('Cancelled. Use the existing invoice or delete it first.');
                             setTimeout(() => closeInvoiceModal(), 2000);
@@ -1469,8 +1462,8 @@
             // Step 3: Generate email template
             const emailText = generateEmailTemplate(invoiceData, paymentLink);
             
-            // Step 4: Show success
-            showInvoiceSuccess(paymentLink, emailText);
+            // Step 4: New invoice flow: open Gmail immediately
+            showInvoiceSuccess(paymentLink, emailText, false);
             
         } catch (error) {
             console.error('Invoice generation error:', error);
@@ -1703,14 +1696,10 @@ Dr. Steve`;
     }
     
     // Show invoice success with payment link and email template
-    function showInvoiceSuccess(paymentLink, emailText) {
-        document.getElementById('invoiceForm').style.display = 'none';
-        paymentLinkResult.style.display = 'block';
-        generateInvoiceButton.disabled = true;
-        
-        paymentLinkUrl.textContent = paymentLink.url;
-        emailTemplate.value = emailText;
-        
+    // isExistingInvoice:
+    // - false (new invoice): open Gmail immediately, close modal
+    // - true (existing invoice reused): show results screen so admin can record manual payment
+    function showInvoiceSuccess(paymentLink, emailText, isExistingInvoice = false) {
         // Extract subject and body from email text
         const lines = emailText.split('\n');
         const subject = lines[0].replace('Subject: ', '');
@@ -1723,7 +1712,23 @@ Dr. Steve`;
             body: body
         };
         
-        showModalSuccess('✅ Invoice created successfully! Send via Gmail or copy the template.');
+        if (isExistingInvoice) {
+            document.getElementById('invoiceForm').style.display = 'none';
+            paymentLinkResult.style.display = 'block';
+            generateInvoiceButton.disabled = true;
+            
+            paymentLinkUrl.textContent = paymentLink.url;
+            emailTemplate.value = emailText;
+            
+            showModalSuccess('✅ Existing invoice loaded. You can record a manual payment or resend the email.');
+            return;
+        }
+        
+        // New invoice: jump straight to Gmail
+        const gmailUrl = buildGmailComposeUrl(currentEmailData.to, currentEmailData.subject, currentEmailData.body);
+        window.open(gmailUrl, '_blank');
+        showModalSuccess('✅ Invoice created! Opening Gmail...');
+        setTimeout(() => closeInvoiceModal(), 800);
     }
     
     // Modal message helpers
