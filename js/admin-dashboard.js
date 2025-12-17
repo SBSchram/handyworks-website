@@ -1584,49 +1584,29 @@
             greeting = `Hi ${settings.salutation} ${lastName},`;
         }
         
-        // Format phone number (remove formatting, keep digits only, then format)
-        const phoneDigits = settings.phone.replace(/\D/g, '');
-        const formattedPhone = phoneDigits.length === 10 
-            ? `(${phoneDigits.slice(0,3)}) ${phoneDigits.slice(3,6)}-${phoneDigits.slice(6)}`
-            : settings.phone;
-        
-        // Build invoice number section
-        const invoiceNumberLine = settings.showInvoiceNumber 
-            ? `INVOICE #: INV-${invoiceData.year}-${invoiceData.acct_num}\n` 
-            : '';
-        
-        // Build check memo instruction
-        const checkMemoLine = (settings.showInvoiceNumber && settings.showCheckMemo)
-            ? `\n   Please include invoice number (INV-${invoiceData.year}-${invoiceData.acct_num}) on check memo line.`
-            : '';
-        
         return `Subject: HandyWorks Annual Maintenance Invoice - ${invoiceData.year}
 
 ${greeting}
 
-Your annual HandyWorks maintenance fee for ${invoiceData.year} is due.
+We are doing our billing differently this year!
 
-${invoiceNumberLine}AMOUNT DUE: $${invoiceData.amount.toFixed(2)}
+Rather than mail the invoice, we are using this email with a payment link included. While you can still call us with your credit card info or send via a fax, we thought this method would be easier. And rather than wait till January 1 to send the invoice, we are doing it just before the end of the year. With that in mind...
 
-PAYMENT OPTIONS:
+Your annual HandyWorks maintenance fee for ${invoiceData.year} is coming due. We are keeping the amount the same as last year ($${settings.cardAmount}), even while our expenses have gone up.
 
-1. PAY ONLINE via Stripe: ${paymentLink.url}
+Options:
+Pay $${settings.cardAmount} via Stripe: ${paymentLink.url}
 
-2. PAY BY CHECK ($${checkDiscount.toFixed(0)} discount - $${settings.checkAmount}):
-   Payment Due upon receipt
-   Mail check to:
-   Chapter 1 Software Inc
-   140 E 28th Street
-   Suite 1F
-   New York City, NY 10016${checkMemoLine}
+-or-
 
-3. PAY BY PHONE: Call us at ${formattedPhone} with your credit card information and we'll process it securely.
+Pay $${settings.checkAmount} by check and save $${checkDiscount}. You can send a check to:
 
-4. PAY BY FAX: Send your credit card information to (212) 889-8830. We'll need CC#, expiration date, CV2 code and billing zip code.
+Chapter 1 Software Inc
+140 E 28th Street
+Suite 1F
+New York City, NY 10016
 
-We charge maintenance once per calendar year and this invoice covers HandyWork support charges for the current year. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.
-
-Remember that the HandyWorks.com website always has the latest version of our software. We encourage you to stay current.
+As in the past, we charge maintenance once per calendar year and this invoice covers HandyWork support charges for ${invoiceData.year}. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.
 
 Thank you for your continued business! We appreciate your support and look forward to serving you in ${invoiceData.year}.
 
