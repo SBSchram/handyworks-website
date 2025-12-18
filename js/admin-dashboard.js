@@ -330,52 +330,50 @@
                     // Status badge
                     let statusBadge = '';
                     if (status === 'paid') {
-                        statusBadge = '<span class="status-badge status-paid">Paid ✓</span>';
+                        statusBadge = '<span style="color: #28a745; font-weight: 500;">✓ Paid</span>';
                     } else if (status === 'overdue') {
-                        statusBadge = '<span class="status-badge status-overdue">Overdue</span>';
+                        statusBadge = '<span style="color: #dc3545; font-weight: 500;">Overdue</span>';
                     } else if (status === 'pending') {
-                        statusBadge = '<span class="status-badge status-pending">Pending</span>';
+                        statusBadge = '<span style="color: #ffc107; font-weight: 500;">Pending</span>';
                     }
                     
-                    // Action button
+                    // Action button - only show if there's an amount owed
                     let actionButton = '';
                     if (owed > 0) {
                         actionButton = `
-                            <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: #28a745; color: white;" 
+                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
                                     onclick="recordPaymentForInvoice('${invoice.id}', '${user.acct_num}')">
                                 Record Payment
                             </button>
                         `;
-                    } else {
-                        actionButton = '<span class="status-badge status-paid">✓ Paid</span>';
                     }
                     
-                    // Delete button
-                    const deleteButton = `
+                    // Delete button (X) - only show if no payments exist
+                    const hasPayments = invoice.payments && invoice.payments.length > 0;
+                    const deleteButton = !hasPayments ? `
                         <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${user.acct_num}', event)" 
-                                style="background: #dc3545; color: white; border: none; padding: 0.35rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-left: 0.5rem;"
-                                title="Delete invoice">Delete</button>
-                    `;
+                                style="background: transparent; color: #dc3545; border: none; padding: 0.2rem 0.4rem; cursor: pointer; font-size: 1.1rem; margin-left: 0.5rem;"
+                                title="Delete invoice">✕</button>
+                    ` : '';
                     
                     // Invoice row
                     const invoiceRow = document.createElement('tr');
                     invoiceRow.style.background = '#f8f9fa';
+                    invoiceRow.style.borderTop = '2px solid #dee2e6';
                     invoiceRow.innerHTML = `
-                        <td>${isFirstRow ? fullName : ''}</td>
-                        <td>${isFirstRow ? (user.email || 'N/A') : ''}</td>
-                        <td><strong>Invoice ${year}</strong> ${statusBadge}</td>
-                        <td style="text-align: right;">$${formatCurrency(billed)}</td>
-                        <td style="text-align: right; color: #28a745;">$${formatCurrency(paid)}</td>
-                        <td style="text-align: right; font-weight: bold; color: ${owed > 0 ? '#dc3545' : '#28a745'};">$${formatCurrency(owed)}</td>
-                        <td>${actionButton}${deleteButton}</td>
+                        <td style="padding: 0.75rem;">${isFirstRow ? fullName : ''}</td>
+                        <td style="padding: 0.75rem;">${isFirstRow ? (user.email || 'N/A') : ''}</td>
+                        <td style="padding: 0.75rem;"><strong>${year}</strong> ${statusBadge}</td>
+                        <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(billed)}</td>
+                        <td style="text-align: right; padding: 0.75rem; color: #28a745;">$${formatCurrency(paid)}</td>
+                        <td style="text-align: right; padding: 0.75rem; font-weight: bold; color: ${owed > 0 ? '#dc3545' : '#28a745'};">$${formatCurrency(owed)}</td>
+                        <td style="padding: 0.75rem;">${actionButton}${deleteButton}</td>
                     `;
                     usersTableBody.appendChild(invoiceRow);
                     isFirstRow = false;
                     
                     // Payment rows (if any)
-                    console.log('Invoice payments:', invoice.invoice_id, invoice.payments);
                     if (invoice.payments && invoice.payments.length > 0) {
-                        console.log('Showing', invoice.payments.length, 'payments for', invoice.invoice_id);
                         // Sort payments oldest to newest
                         const sortedPayments = [...invoice.payments].sort((a, b) => {
                             const dateA = a.payment_date?.toDate ? a.payment_date.toDate() : new Date(0);
@@ -388,22 +386,24 @@
                             paymentRow.style.background = '#ffffff';
                             const date = payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A';
                             const method = payment.payment_method || 'Unknown';
-                            const reference = payment.payment_reference ? ` (${payment.payment_reference})` : '';
+                            const reference = payment.payment_reference ? ` #${payment.payment_reference}` : '';
                             
                             const deletePaymentButton = `
                                 <button onclick="deletePayment('${payment.id}', '${invoice.id}', event)" 
-                                        style="background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.75rem;"
-                                        title="Delete payment">Delete</button>
+                                        style="background: transparent; color: #dc3545; border: none; padding: 0.2rem 0.4rem; cursor: pointer; font-size: 1rem;"
+                                        title="Delete payment">✕</button>
                             `;
                             
                             paymentRow.innerHTML = `
-                                <td></td>
-                                <td></td>
-                                <td style="padding-left: 2rem; color: #666; font-size: 0.9rem;">↳ Payment: ${date} via ${method}${reference}</td>
-                                <td></td>
-                                <td style="text-align: right; color: #28a745;">$${formatCurrency(payment.amount || 0)}</td>
-                                <td></td>
-                                <td>${deletePaymentButton}</td>
+                                <td style="padding: 0.5rem;"></td>
+                                <td style="padding: 0.5rem;"></td>
+                                <td style="padding: 0.5rem 0.5rem 0.5rem 2.5rem; color: #666; font-size: 0.9rem;">
+                                    <span style="color: #999;">↳</span> ${date} · ${method}${reference}
+                                </td>
+                                <td style="padding: 0.5rem;"></td>
+                                <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(payment.amount || 0)}</td>
+                                <td style="padding: 0.5rem;"></td>
+                                <td style="padding: 0.5rem;">${deletePaymentButton}</td>
                             `;
                             usersTableBody.appendChild(paymentRow);
                         });
