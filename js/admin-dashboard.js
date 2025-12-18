@@ -1724,11 +1724,15 @@ Dr. Steve`;
             return;
         }
         
-        // New invoice: jump straight to Gmail
-        const gmailUrl = buildGmailComposeUrl(currentEmailData.to, currentEmailData.subject, currentEmailData.body);
-        window.open(gmailUrl, '_blank');
-        showModalSuccess('✅ Invoice created! Opening Gmail...');
-        setTimeout(() => closeInvoiceModal(), 800);
+        // New invoice: show results instead of auto-opening Gmail (due to redirect issues on some machines)
+        document.getElementById('invoiceForm').style.display = 'none';
+        paymentLinkResult.style.display = 'block';
+        generateInvoiceButton.disabled = true;
+        
+        paymentLinkUrl.textContent = paymentLink.url;
+        emailTemplate.value = emailText;
+        
+        showModalSuccess('✅ Invoice created successfully! Click "Send via Gmail" button below or copy the template.');
     }
     
     // Modal message helpers
