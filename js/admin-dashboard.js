@@ -278,7 +278,7 @@
         displayUsers();
     }
     
-    // Display users in table (one row per invoice)
+    // Display users in table (one row per invoice, one row per payment)
     function displayUsers() {
         usersTableBody.innerHTML = '';
         
@@ -294,6 +294,9 @@
         filteredUsers.forEach(user => {
             const fullName = `${user.fname || ''} ${user.lname || ''}`.trim() || 'N/A';
             const activeInvoices = user.invoices?.filter(inv => inv.payment_status !== 'cancelled') || [];
+            
+            // Sort invoices oldest to newest
+            activeInvoices.sort((a, b) => (a.year || 0) - (b.year || 0));
             
             if (activeInvoices.length === 0) {
                 // No invoices - show one row with Generate Invoice button
@@ -314,9 +317,10 @@
                 `;
                 usersTableBody.appendChild(row);
             } else {
-                // Show one row per invoice
-                activeInvoices.forEach((invoice, index) => {
-                    const row = document.createElement('tr');
+                let isFirstRow = true;
+                
+                // Show one row per invoice, then one row per payment
+                activeInvoices.forEach((invoice) => {
                     const year = invoice.year || '?';
                     const billed = invoice.amount || 0;
                     const paid = invoice.totalPaid || 0;
@@ -353,21 +357,55 @@
                                 title="Delete invoice">Delete</button>
                     `;
                     
-                    // Show name only on first invoice row
-                    const nameCell = index === 0 ? fullName : '';
-                    const emailCell = index === 0 ? (user.email || 'N/A') : '';
-                    
-                    row.innerHTML = `
-                        <td>${nameCell}</td>
-                        <td>${emailCell}</td>
-                        <td>${year} ${statusBadge}</td>
+                    // Invoice row
+                    const invoiceRow = document.createElement('tr');
+                    invoiceRow.style.background = '#f8f9fa';
+                    invoiceRow.innerHTML = `
+                        <td>${isFirstRow ? fullName : ''}</td>
+                        <td>${isFirstRow ? (user.email || 'N/A') : ''}</td>
+                        <td><strong>Invoice ${year}</strong> ${statusBadge}</td>
                         <td style="text-align: right;">$${formatCurrency(billed)}</td>
                         <td style="text-align: right; color: #28a745;">$${formatCurrency(paid)}</td>
                         <td style="text-align: right; font-weight: bold; color: ${owed > 0 ? '#dc3545' : '#28a745'};">$${formatCurrency(owed)}</td>
                         <td>${actionButton}${deleteButton}</td>
                     `;
+                    usersTableBody.appendChild(invoiceRow);
+                    isFirstRow = false;
                     
-                    usersTableBody.appendChild(row);
+                    // Payment rows (if any)
+                    if (invoice.payments && invoice.payments.length > 0) {
+                        // Sort payments oldest to newest
+                        const sortedPayments = [...invoice.payments].sort((a, b) => {
+                            const dateA = a.payment_date?.toDate ? a.payment_date.toDate() : new Date(0);
+                            const dateB = b.payment_date?.toDate ? b.payment_date.toDate() : new Date(0);
+                            return dateA - dateB;
+                        });
+                        
+                        sortedPayments.forEach(payment => {
+                            const paymentRow = document.createElement('tr');
+                            paymentRow.style.background = '#ffffff';
+                            const date = payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A';
+                            const method = payment.payment_method || 'Unknown';
+                            const reference = payment.payment_reference ? ` (${payment.payment_reference})` : '';
+                            
+                            const deletePaymentButton = `
+                                <button onclick="deletePayment('${payment.id}', '${invoice.id}', event)" 
+                                        style="background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.75rem;"
+                                        title="Delete payment">Delete</button>
+                            `;
+                            
+                            paymentRow.innerHTML = `
+                                <td></td>
+                                <td></td>
+                                <td style="padding-left: 2rem; color: #666; font-size: 0.9rem;">↳ Payment: ${date} via ${method}${reference}</td>
+                                <td></td>
+                                <td style="text-align: right; color: #28a745;">$${formatCurrency(payment.amount || 0)}</td>
+                                <td></td>
+                                <td>${deletePaymentButton}</td>
+                            `;
+                            usersTableBody.appendChild(paymentRow);
+                        });
+                    }
                 });
             }
         });
