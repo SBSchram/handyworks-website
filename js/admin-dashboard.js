@@ -302,13 +302,13 @@
                 // No invoices - show one row with Generate Invoice button
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${fullName}</td>
-                    <td>${user.email || 'N/A'}</td>
-                    <td style="color: #999;">No invoices</td>
-                    <td>$0.00</td>
-                    <td>$0.00</td>
-                    <td>$0.00</td>
-                    <td>
+                    <td style="padding: 0.75rem;">${fullName}</td>
+                    <td style="padding: 0.75rem;">${user.email || 'N/A'}</td>
+                    <td style="padding: 0.75rem; color: #999;">No invoices</td>
+                    <td style="text-align: right; padding: 0.75rem;">$0.00</td>
+                    <td style="text-align: right; padding: 0.75rem;">$0.00</td>
+                    <td style="text-align: right; padding: 0.75rem;">$0.00</td>
+                    <td style="padding: 0.75rem;">
                         <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" 
                                 onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
                             Generate Invoice
@@ -385,7 +385,17 @@
                         sortedPayments.forEach(payment => {
                             const paymentRow = document.createElement('tr');
                             paymentRow.style.background = '#ffffff';
-                            const date = payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A';
+                            
+                            // Format payment date as YYYY-MM-DD
+                            let paymentDate = 'N/A';
+                            if (payment.payment_date?.toDate) {
+                                const date = payment.payment_date.toDate();
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+                                paymentDate = `${year}-${month}-${day}`;
+                            }
+                            
                             const method = payment.payment_method || 'Unknown';
                             const reference = payment.payment_reference ? ` #${payment.payment_reference}` : '';
                             
@@ -398,12 +408,12 @@
                             paymentRow.innerHTML = `
                                 <td style="padding: 0.5rem;"></td>
                                 <td style="padding: 0.5rem;"></td>
-                                <td style="padding: 0.5rem 0.5rem 0.5rem 2.5rem; color: #666; font-size: 0.9rem;">
-                                    <span style="color: #999;">↳</span> ${date} · ${method}${reference}
+                                <td style="padding: 0.5rem 0.5rem 0.5rem 2rem; color: #666; font-size: 0.9rem;">
+                                    ${paymentDate} ${method}${reference}
                                 </td>
-                                <td style="padding: 0.5rem;"></td>
+                                <td style="text-align: right; padding: 0.5rem;"></td>
                                 <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(payment.amount || 0)}</td>
-                                <td style="padding: 0.5rem;"></td>
+                                <td style="text-align: right; padding: 0.5rem;"></td>
                                 <td style="padding: 0.5rem;">${deletePaymentButton}</td>
                             `;
                             usersTableBody.appendChild(paymentRow);
