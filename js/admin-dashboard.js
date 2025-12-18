@@ -321,21 +321,22 @@
                 
                 // Show one row per invoice, then one row per payment
                 activeInvoices.forEach((invoice) => {
-                    const year = invoice.year || '?';
                     const billed = invoice.amount || 0;
                     const paid = invoice.totalPaid || 0;
                     const owed = invoice.amountOwed || 0;
-                    const status = invoice.paymentStatus || 'pending';
                     
-                    // Status badge
-                    let statusBadge = '';
-                    if (status === 'paid') {
-                        statusBadge = '<span style="color: #28a745; font-weight: 500;">✓ Paid</span>';
-                    } else if (status === 'overdue') {
-                        statusBadge = '<span style="color: #dc3545; font-weight: 500;">Overdue</span>';
-                    } else if (status === 'pending') {
-                        statusBadge = '<span style="color: #ffc107; font-weight: 500;">Pending</span>';
+                    // Format invoice date as YYYY-MM-DD
+                    let invoiceDate = 'N/A';
+                    if (invoice.created_at?.toDate) {
+                        const date = invoice.created_at.toDate();
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        invoiceDate = `${year}-${month}-${day}`;
                     }
+                    
+                    // Date color: green if fully paid, red if unpaid
+                    const dateColor = owed > 0 ? '#dc3545' : '#28a745';
                     
                     // Action button - only show if there's an amount owed
                     let actionButton = '';
@@ -363,10 +364,10 @@
                     invoiceRow.innerHTML = `
                         <td style="padding: 0.75rem;">${isFirstRow ? fullName : ''}</td>
                         <td style="padding: 0.75rem;">${isFirstRow ? (user.email || 'N/A') : ''}</td>
-                        <td style="padding: 0.75rem;"><strong>${year}</strong> ${statusBadge}</td>
+                        <td style="padding: 0.75rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
                         <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(billed)}</td>
-                        <td style="text-align: right; padding: 0.75rem; color: #28a745;">$${formatCurrency(paid)}</td>
-                        <td style="text-align: right; padding: 0.75rem; font-weight: bold; color: ${owed > 0 ? '#dc3545' : '#28a745'};">$${formatCurrency(owed)}</td>
+                        <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(paid)}</td>
+                        <td style="text-align: right; padding: 0.75rem; font-weight: bold;">$${formatCurrency(owed)}</td>
                         <td style="padding: 0.75rem;">${actionButton}${deleteButton}</td>
                     `;
                     usersTableBody.appendChild(invoiceRow);
