@@ -278,7 +278,7 @@
         displayUsers();
     }
     
-    // Display users in table
+    // Display users in table (one row per invoice)
     function displayUsers() {
         usersTableBody.innerHTML = '';
         
@@ -292,62 +292,84 @@
         noDataMessage.style.display = 'none';
         
         filteredUsers.forEach(user => {
-            const row = document.createElement('tr');
-            
             const fullName = `${user.fname || ''} ${user.lname || ''}`.trim() || 'N/A';
+            const activeInvoices = user.invoices?.filter(inv => inv.payment_status !== 'cancelled') || [];
             
-            // Build invoice history HTML (compact pills)
-            let invoiceHistoryHTML = '';
-            if (user.invoices && user.invoices.length > 0) {
-                invoiceHistoryHTML = user.invoices
-                    .filter(inv => inv.payment_status !== 'cancelled') // Hide cancelled invoices
-                    .map(inv => formatInvoicePill(inv, user.acct_num))
-                    .join(' ');
-            }
-            
-            if (!invoiceHistoryHTML) {
-                invoiceHistoryHTML = '<span style="color: #999;">No invoices</span>';
-            }
-            
-            // Determine action button
-            const currentYear = new Date().getFullYear();
-            const targetYear = currentYear + 1;
-            const currentYearInvoice = user.invoices?.find(inv => 
-                inv.year === targetYear && inv.payment_status !== 'cancelled'
-            );
-            
-            let actionButton = '';
-            if (!currentYearInvoice) {
-                // No invoice for target year - show Generate Invoice button
-                actionButton = `
-                    <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" 
-                            onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
-                        Generate Invoice
-                    </button>
+            if (activeInvoices.length === 0) {
+                // No invoices - show one row with Generate Invoice button
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${fullName}</td>
+                    <td>${user.email || 'N/A'}</td>
+                    <td style="color: #999;">No invoices</td>
+                    <td>$0.00</td>
+                    <td>$0.00</td>
+                    <td>$0.00</td>
+                    <td>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" 
+                                onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
+                            Generate Invoice
+                        </button>
+                    </td>
                 `;
-            } else if (currentYearInvoice.amountOwed > 0) {
-                // Invoice exists with amount owed - show Record Payment button
-                actionButton = `
-                    <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: #28a745; color: white;" 
-                            onclick="recordPaymentForInvoice('${currentYearInvoice.id}', '${user.acct_num}')">
-                        Record Payment
-                    </button>
-                `;
+                usersTableBody.appendChild(row);
             } else {
-                // Invoice paid - show paid badge
-                actionButton = `
-                    <span class="status-badge status-paid">✓ Paid</span>
-                `;
+                // Show one row per invoice
+                activeInvoices.forEach((invoice, index) => {
+                    const row = document.createElement('tr');
+                    const year = invoice.year || '?';
+                    const billed = invoice.amount || 0;
+                    const paid = invoice.totalPaid || 0;
+                    const owed = invoice.amountOwed || 0;
+                    const status = invoice.paymentStatus || 'pending';
+                    
+                    // Status badge
+                    let statusBadge = '';
+                    if (status === 'paid') {
+                        statusBadge = '<span class="status-badge status-paid">Paid ✓</span>';
+                    } else if (status === 'overdue') {
+                        statusBadge = '<span class="status-badge status-overdue">Overdue</span>';
+                    } else if (status === 'pending') {
+                        statusBadge = '<span class="status-badge status-pending">Pending</span>';
+                    }
+                    
+                    // Action button
+                    let actionButton = '';
+                    if (owed > 0) {
+                        actionButton = `
+                            <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: #28a745; color: white;" 
+                                    onclick="recordPaymentForInvoice('${invoice.id}', '${user.acct_num}')">
+                                Record Payment
+                            </button>
+                        `;
+                    } else {
+                        actionButton = '<span class="status-badge status-paid">✓ Paid</span>';
+                    }
+                    
+                    // Delete button
+                    const deleteButton = `
+                        <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${user.acct_num}', event)" 
+                                style="background: #dc3545; color: white; border: none; padding: 0.35rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-left: 0.5rem;"
+                                title="Delete invoice">Delete</button>
+                    `;
+                    
+                    // Show name only on first invoice row
+                    const nameCell = index === 0 ? fullName : '';
+                    const emailCell = index === 0 ? (user.email || 'N/A') : '';
+                    
+                    row.innerHTML = `
+                        <td>${nameCell}</td>
+                        <td>${emailCell}</td>
+                        <td>${year} ${statusBadge}</td>
+                        <td style="text-align: right;">$${formatCurrency(billed)}</td>
+                        <td style="text-align: right; color: #28a745;">$${formatCurrency(paid)}</td>
+                        <td style="text-align: right; font-weight: bold; color: ${owed > 0 ? '#dc3545' : '#28a745'};">$${formatCurrency(owed)}</td>
+                        <td>${actionButton}${deleteButton}</td>
+                    `;
+                    
+                    usersTableBody.appendChild(row);
+                });
             }
-            
-            row.innerHTML = `
-                <td>${fullName}</td>
-                <td>${user.email || 'N/A'}</td>
-                <td style="max-width: 400px;">${invoiceHistoryHTML}</td>
-                <td>${actionButton}</td>
-            `;
-            
-            usersTableBody.appendChild(row);
         });
     }
     
