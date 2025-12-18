@@ -1749,6 +1749,14 @@ Dr. Steve`;
         modalErrorMessage.style.display = 'none';
     }
     
+    function showModalLoading() {
+        showModalSuccess('Loading...');
+    }
+    
+    function hideModalLoading() {
+        hideModalMessages();
+    }
+    
     function setGenerateButtonLoading(isLoading) {
         if (isLoading) {
             generateButtonText.style.display = 'none';
