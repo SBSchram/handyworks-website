@@ -319,11 +319,9 @@
             } else {
                 let isFirstRow = true;
                 
-                // Show one row per invoice, then one row per payment
+                // Show one row per invoice, then one row per payment with running balance
                 activeInvoices.forEach((invoice) => {
                     const billed = invoice.amount || 0;
-                    const paid = invoice.totalPaid || 0;
-                    const owed = invoice.amountOwed || 0;
                     
                     // Format invoice date as YYYY-MM-DD
                     let invoiceDate = 'N/A';
@@ -335,12 +333,14 @@
                         invoiceDate = `${year}-${month}-${day}`;
                     }
                     
-                    // Date color: green if fully paid, red if unpaid
-                    const dateColor = owed > 0 ? '#dc3545' : '#28a745';
+                    // Invoice row shows: billed amount, blank paid, initial owed
+                    let runningBalance = billed;
+                    const dateColor = runningBalance > 0 ? '#dc3545' : '#28a745';
                     
                     // Action button - only show if there's an amount owed
+                    const totalOwed = invoice.amountOwed || 0;
                     let actionButton = '';
-                    if (owed > 0) {
+                    if (totalOwed > 0) {
                         actionButton = `
                             <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
                                     onclick="recordPaymentForInvoice('${invoice.id}', '${user.acct_num}')">
@@ -366,8 +366,8 @@
                         <td style="padding: 0.75rem;">${isFirstRow ? (user.email || 'N/A') : ''}</td>
                         <td style="padding: 0.75rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
                         <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(billed)}</td>
-                        <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(paid)}</td>
-                        <td style="text-align: right; padding: 0.75rem; font-weight: bold;">$${formatCurrency(owed)}</td>
+                        <td style="text-align: right; padding: 0.75rem;"></td>
+                        <td style="text-align: right; padding: 0.75rem; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
                         <td style="padding: 0.75rem;">${actionButton}${deleteButton}</td>
                     `;
                     usersTableBody.appendChild(invoiceRow);
@@ -398,6 +398,11 @@
                             
                             const method = payment.payment_method || 'Unknown';
                             const reference = payment.payment_reference ? ` #${payment.payment_reference}` : '';
+                            const paymentAmount = payment.amount || 0;
+                            
+                            // Update running balance
+                            runningBalance -= paymentAmount;
+                            const balanceColor = runningBalance > 0 ? '#dc3545' : '#28a745';
                             
                             const deletePaymentButton = `
                                 <button onclick="deletePayment('${payment.id}', '${invoice.id}', event)" 
@@ -412,8 +417,8 @@
                                     ${paymentDate} ${method}${reference}
                                 </td>
                                 <td style="text-align: right; padding: 0.5rem;"></td>
-                                <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(payment.amount || 0)}</td>
-                                <td style="text-align: right; padding: 0.5rem;"></td>
+                                <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(paymentAmount)}</td>
+                                <td style="text-align: right; padding: 0.5rem; font-weight: bold; color: ${balanceColor}; font-size: 0.9rem;">$${formatCurrency(runningBalance)}</td>
                                 <td style="padding: 0.5rem;">${deletePaymentButton}</td>
                             `;
                             usersTableBody.appendChild(paymentRow);
