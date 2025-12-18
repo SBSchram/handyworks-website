@@ -373,7 +373,9 @@
                     isFirstRow = false;
                     
                     // Payment rows (if any)
+                    console.log('Invoice payments:', invoice.invoice_id, invoice.payments);
                     if (invoice.payments && invoice.payments.length > 0) {
+                        console.log('Showing', invoice.payments.length, 'payments for', invoice.invoice_id);
                         // Sort payments oldest to newest
                         const sortedPayments = [...invoice.payments].sort((a, b) => {
                             const dateA = a.payment_date?.toDate ? a.payment_date.toDate() : new Date(0);
