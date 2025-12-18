@@ -366,7 +366,7 @@
                         <td style="padding: 0.75rem;">${isFirstRow ? (user.email || 'N/A') : ''}</td>
                         <td style="padding: 0.75rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
                         <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(billed)}</td>
-                        <td style="text-align: right; padding: 0.75rem; color: #ccc;">-</td>
+                        <td style="text-align: center; padding: 0.75rem; color: #999; font-size: 1.1rem;">—</td>
                         <td style="text-align: right; padding: 0.75rem; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
                         <td style="padding: 0.75rem;">${actionButton}${deleteButton}</td>
                     `;
@@ -416,7 +416,7 @@
                                 <td style="padding: 0.5rem 0.5rem 0.5rem 2rem; color: #666; font-size: 0.9rem;">
                                     ${paymentDate} ${method}${reference}
                                 </td>
-                                <td style="text-align: right; padding: 0.5rem; color: #ccc; font-size: 0.9rem;">-</td>
+                                <td style="text-align: center; padding: 0.5rem; color: #999; font-size: 1rem;">—</td>
                                 <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(paymentAmount)}</td>
                                 <td style="text-align: right; padding: 0.5rem; font-weight: bold; color: ${balanceColor}; font-size: 0.9rem;">$${formatCurrency(runningBalance)}</td>
                                 <td style="padding: 0.5rem;">${deletePaymentButton}</td>
