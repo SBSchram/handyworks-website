@@ -1091,11 +1091,10 @@
         }
     }
     
-    // Open invoice template editor (opens template file in new window)
+    // Open invoice template editor (opens dedicated editor page)
     function openInvoiceTemplateEditor() {
-        // Open the invoice template file in a new window/tab for direct editing
-        const templateUrl = 'templates/invoice-template.html';
-        window.open(templateUrl, '_blank');
+        // Open the dedicated template editor page
+        window.open('template-editor.html', '_blank');
     }
     
     // Global variables for invoice editor

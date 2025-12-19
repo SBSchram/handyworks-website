@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Template Editor - HandyWorks</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .editor-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .editor-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #008080;
+        }
+        .editor-header h1 {
+            color: #008080;
+            margin: 0 0 10px 0;
+        }
+        .editor-header p {
+            color: #666;
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+        .editor-controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: #008080;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #006666;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        #editor {
+            height: 600px;
+            margin-bottom: 20px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #htmlSource {
+            display: none;
+            width: 100%;
+            height: 600px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .instructions {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #008080;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #008080;
+        }
+        .instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <div class="editor-header">
+            <h1>📝 Invoice Template Editor</h1>
+            <p>Edit your invoice email template. Use placeholders like <code>[Greeting]</code>, <code>[Year]</code>, <code>[CardAmount]</code> that will be replaced with actual data when generating invoices.</p>
+            <p><a href="admin.html" style="color: #008080;">← Back to Admin Dashboard</a></p>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <div class="instructions">
+            <h3>Available Placeholders:</h3>
+            <ul>
+                <li><code>[Greeting]</code> - Formatted greeting (e.g., "Hi Dr. Smith,")</li>
+                <li><code>[Lastname]</code> - Customer's last name</li>
+                <li><code>[Firstname]</code> - Customer's first name</li>
+                <li><code>[Fullname]</code> - Customer's full name</li>
+                <li><code>[Year]</code> - Invoice year (e.g., "2026")</li>
+                <li><code>[CardAmount]</code> - Card payment amount (e.g., "555")</li>
+                <li><code>[CheckAmount]</code> - Check payment amount (e.g., "540")</li>
+                <li><code>[CheckDiscount]</code> - Discount amount (e.g., "15")</li>
+                <li><code>[PaymentLink]</code> - Stripe payment link URL</li>
+                <li><code>[PaymentLinkText]</code> - Payment link button text</li>
+                <li><code>[Address]</code> - Mailing address for checks</li>
+                <li><code>[SupportPhone]</code> - Support phone number</li>
+                <li><code>[FaxNumber]</code> - Fax number</li>
+                <li><code>[Signature]</code> - Signature line (e.g., "Dr. Steve")</li>
+            </ul>
+        </div>
+        
+        <div class="editor-controls">
+            <button class="btn btn-secondary" id="toggleHtmlButton">View HTML Source</button>
+            <button class="btn btn-primary" id="loadTemplateButton">Reload Template</button>
+            <button class="btn btn-success" id="saveTemplateButton">Save Template</button>
+        </div>
+        
+        <!-- Quill Editor -->
+        <div id="editor"></div>
+        
+        <!-- HTML Source View -->
+        <textarea id="htmlSource" placeholder="HTML source will appear here..."></textarea>
+        
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p style="color: #666; font-size: 0.9rem;">
+                <strong>Note:</strong> After saving, the template will be used when generating invoices. 
+                Make sure to include all HTML structure (DOCTYPE, html, head with styles, body) for proper email formatting.
+            </p>
+        </div>
+    </div>
+    
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <script>
+        let quill = null;
+        let isHtmlView = false;
+        let templateHead = '';
+        
+        // Initialize Quill editor
+        function initEditor() {
+            quill = new Quill('#editor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                        [{ 'size': ['small', false, 'large', 'huge'] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'script': 'sub'}, { 'script': 'super' }],
+                        [{ 'indent': '-1'}, { 'indent': '+1' }],
+                        [{ 'direction': 'rtl' }],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'font': [] }],
+                        [{ 'align': [] }],
+                        ['link', 'image', 'video'],
+                        ['blockquote', 'code-block'],
+                        ['clean']
+                    ]
+                }
+            });
+        }
+        
+        // Load template from file
+        async function loadTemplate() {
+            try {
+                const response = await fetch('templates/invoice-template.html');
+                if (!response.ok) {
+                    throw new Error('Template file not found');
+                }
+                
+                const html = await response.text();
+                
+                // Extract head and body
+                const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+                const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                
+                if (headMatch) {
+                    templateHead = headMatch[0];
+                }
+                
+                const bodyContent = bodyMatch ? bodyMatch[1] : html;
+                
+                // Set content in editor
+                if (quill) {
+                    quill.root.innerHTML = bodyContent;
+                }
+                
+                // Update HTML source
+                document.getElementById('htmlSource').value = html;
+                
+                showMessage('Template loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error loading template:', error);
+                showMessage('Error loading template: ' + error.message, 'error');
+            }
+        }
+        
+        // Toggle HTML source view
+        function toggleHtmlView() {
+            isHtmlView = !isHtmlView;
+            const editor = document.getElementById('editor');
+            const htmlSource = document.getElementById('htmlSource');
+            const toggleButton = document.getElementById('toggleHtmlButton');
+            
+            if (isHtmlView) {
+                // Switch to HTML source
+                const bodyContent = quill.root.innerHTML;
+                const fullHtml = `<!DOCTYPE html>
+<html>
+${templateHead || '<head><meta charset="UTF-8"></head>'}
+<body>
+${bodyContent}
+</body>
+</html>`;
+                htmlSource.value = fullHtml;
+                editor.style.display = 'none';
+                htmlSource.style.display = 'block';
+                toggleButton.textContent = 'View WYSIWYG Editor';
+            } else {
+                // Switch to WYSIWYG
+                const fullHtml = htmlSource.value;
+                const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                const bodyContent = bodyMatch ? bodyMatch[1] : fullHtml;
+                
+                // Update head if found
+                const headMatch = fullHtml.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+                if (headMatch) {
+                    templateHead = headMatch[0];
+                }
+                
+                quill.root.innerHTML = bodyContent;
+                editor.style.display = 'block';
+                htmlSource.style.display = 'none';
+                toggleButton.textContent = 'View HTML Source';
+            }
+        }
+        
+        // Save template (download as file)
+        function saveTemplate() {
+            let htmlContent;
+            
+            if (isHtmlView) {
+                htmlContent = document.getElementById('htmlSource').value;
+            } else {
+                const bodyContent = quill.root.innerHTML;
+                htmlContent = `<!DOCTYPE html>
+<html>
+${templateHead || '<head><meta charset="UTF-8"></head>'}
+<body>
+${bodyContent}
+</body>
+</html>`;
+            }
+            
+            // Create download link
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'invoice-template.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('Template downloaded! Replace the file at billing/templates/invoice-template.html with this downloaded file.', 'success');
+        }
+        
+        // Show message
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = 'block';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Event listeners
+        document.getElementById('toggleHtmlButton').addEventListener('click', toggleHtmlView);
+        document.getElementById('loadTemplateButton').addEventListener('click', loadTemplate);
+        document.getElementById('saveTemplateButton').addEventListener('click', saveTemplate);
+        
+        // Initialize
+        initEditor();
+        loadTemplate();
+    </script>
+</body>
+</html>
+
