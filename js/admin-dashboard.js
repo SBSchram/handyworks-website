@@ -1107,14 +1107,34 @@
     // Load invoice template and replace placeholders
     async function loadInvoiceTemplate(invoiceData, paymentLink) {
         try {
-            const templateUrl = 'templates/invoice-template.html';
-            const response = await fetch(templateUrl);
+            let templateHtml = null;
+            let source = 'unknown';
             
-            if (!response.ok) {
-                throw new Error(`Template not found: ${templateUrl}. Please create the template file.`);
+            // Try Firebase first
+            try {
+                const templateDoc = await db.collection('handyworks_settings').doc('invoice_template').get();
+                if (templateDoc.exists) {
+                    templateHtml = templateDoc.data().html;
+                    source = 'Firebase';
+                    console.log('Template loaded from Firebase');
+                }
+            } catch (firebaseError) {
+                console.log('Firebase load failed, trying file:', firebaseError);
             }
             
-            let templateHtml = await response.text();
+            // Fallback to file if Firebase doesn't have it
+            if (!templateHtml) {
+                const templateUrl = 'templates/invoice-template.html';
+                const response = await fetch(templateUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Template not found in Firebase or file: ${templateUrl}. Please create the template.`);
+                }
+                
+                templateHtml = await response.text();
+                source = 'File';
+                console.log('Template loaded from file');
+            }
             
             // Get business settings
             const settings = getBusinessSettings();
