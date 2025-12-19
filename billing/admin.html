@@ -9,9 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - HandyWorks Billing</title>
-    <link rel="stylesheet" href="../css/style.css?v=20251218v2">
-    <script src="../js/config.js?v=20251218v2"></script>
-    <script src="../js/header-footer.js?v=20251218v2" defer></script>
+    <link rel="stylesheet" href="../css/style.css?v=20251218v3">
+    <script src="../js/config.js?v=20251218v3"></script>
+    <script src="../js/header-footer.js?v=20251218v3" defer></script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -20,7 +20,7 @@
     <style>
         .admin-dashboard {
             max-width: 1400px;
-            margin: 2rem auto;
+            margin: 1rem auto;
             padding: 0 1rem;
         }
         
@@ -28,40 +28,41 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: 0.5rem;
         }
         
         .dashboard-header h1 {
             color: #008080;
-            font-size: 2rem;
+            font-size: 1.75rem;
+            margin: 0;
         }
         
         .dashboard-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
         }
         
         .stat-card {
             background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
+            padding: 1rem;
+            border-radius: 6px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .stat-card h3 {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #666;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         
         .stat-card .value {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: bold;
             color: #008080;
         }
@@ -80,12 +81,12 @@
         
         .dashboard-controls {
             background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
+            padding: 1rem;
+            border-radius: 6px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             display: flex;
-            gap: 1rem;
+            gap: 0.75rem;
             flex-wrap: wrap;
             align-items: center;
         }
@@ -97,26 +98,26 @@
         
         .search-filter input {
             width: 100%;
-            padding: 0.75rem;
+            padding: 0.5rem 0.75rem;
             border: 2px solid #ddd;
             border-radius: 6px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
         
         .filter-select {
-            padding: 0.75rem;
+            padding: 0.5rem 0.75rem;
             border: 2px solid #ddd;
             border-radius: 6px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             background: white;
             cursor: pointer;
         }
         
         .btn {
-            padding: 0.75rem 1.5rem;
+            padding: 0.5rem 1rem;
             border: none;
             border-radius: 6px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
@@ -860,7 +861,7 @@
         <!-- Footer content will be inserted by header-footer.js -->
     </footer>
 
-    <script src="../js/admin-dashboard.js?v=20251218v2"></script>
+    <script src="../js/admin-dashboard.js?v=20251218v3"></script>
 </body>
 </html>
 
