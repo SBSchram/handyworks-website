@@ -2376,6 +2376,66 @@ New York City, NY 10016</div>
     // isExistingInvoice:
     // - false (new invoice): open Gmail immediately, close modal
     // - true (existing invoice reused): show results screen so admin can record manual payment
+    // Auto-copy HTML invoice and open Gmail
+    async function autoCopyInvoiceAndOpenGmail(invoiceData, paymentLink, emailData) {
+        try {
+            // Load template and generate HTML
+            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink);
+            let htmlContent;
+            
+            if (typeof templateData === 'string') {
+                htmlContent = templateData;
+            } else {
+                htmlContent = templateData.full;
+            }
+            
+            // Generate plain text fallback
+            const plainTextContent = generateEmailTemplate(invoiceData, paymentLink);
+            const plainTextBody = plainTextContent.split('\n').slice(2).join('\n');
+            
+            // Copy to clipboard with both HTML and plain text formats
+            const clipboardItem = new ClipboardItem({
+                'text/html': new Blob([htmlContent], { type: 'text/html' }),
+                'text/plain': new Blob([plainTextBody], { type: 'text/plain' })
+            });
+            
+            await navigator.clipboard.write([clipboardItem]);
+            
+            // Open Gmail with To/Subject only (no body - user will paste HTML)
+            const gmailUrl = buildGmailComposeUrl(
+                emailData.to,
+                emailData.subject,
+                null,
+                false // Don't include body - user will paste HTML
+            );
+            
+            window.open(gmailUrl, '_blank');
+            
+            return true;
+        } catch (error) {
+            console.error('Error auto-copying invoice:', error);
+            
+            // Fallback: try plain text copy
+            try {
+                const plainTextContent = generateEmailTemplate(invoiceData, paymentLink);
+                const plainTextBody = plainTextContent.split('\n').slice(2).join('\n');
+                await navigator.clipboard.writeText(plainTextBody);
+                
+                const gmailUrl = buildGmailComposeUrl(
+                    emailData.to,
+                    emailData.subject,
+                    null,
+                    false
+                );
+                window.open(gmailUrl, '_blank');
+                return true;
+            } catch (fallbackError) {
+                console.error('Fallback copy also failed:', fallbackError);
+                return false;
+            }
+        }
+    }
+    
     function showInvoiceSuccess(paymentLink, emailText, isExistingInvoice = false) {
         // Extract subject and body from email text
         const lines = emailText.split('\n');
@@ -2401,7 +2461,7 @@ New York City, NY 10016</div>
             return;
         }
         
-        // New invoice: show results instead of auto-opening Gmail (due to redirect issues on some machines)
+        // New invoice: automatically copy HTML invoice and open Gmail
         document.getElementById('invoiceForm').style.display = 'none';
         paymentLinkResult.style.display = 'block';
         generateInvoiceButton.disabled = true;
@@ -2409,7 +2469,18 @@ New York City, NY 10016</div>
         paymentLinkUrl.textContent = paymentLink.url;
         emailTemplate.value = emailText;
         
-        showModalSuccess('✅ Invoice created successfully! Click "Send via Gmail" button below or copy the template.');
+        // Auto-copy and open Gmail
+        autoCopyInvoiceAndOpenGmail(currentInvoiceData, paymentLink, currentEmailData).then((success) => {
+            if (success) {
+                showModalSuccess('✅ Invoice created! Formatted invoice copied to clipboard. Gmail opened - just paste (Ctrl+V / Cmd+V) into the email body.');
+                // Close modal after a short delay
+                setTimeout(() => {
+                    closeInvoiceModal();
+                }, 3000);
+            } else {
+                showModalSuccess('✅ Invoice created! However, clipboard copy failed. Use the buttons below to copy manually.');
+            }
+        });
     }
     
     // Modal message helpers
