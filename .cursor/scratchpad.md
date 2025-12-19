@@ -77,10 +77,10 @@ After copy succeeds, show: "Copied. Gmail opened—click in the body and paste (
 
 ---
 
-## 🎯 PLANNER (2025-12-18): HTML Template-Based Invoice with Editor
+## ✅ COMPLETED (2025-12-19): HTML Template-Based Invoice with Quill Editor
 
 ### Background and Motivation
-**Current State**: After generating an invoice, the HTML template is created via `generateEmailHTMLTemplate()` programmatically. This requires code changes to modify the invoice structure/styling.
+**Original State**: After generating an invoice, the HTML template was created via `generateEmailHTMLTemplate()` programmatically. This required code changes to modify the invoice structure/styling.
 
 **User Request**: "Here's my workflow. The basic invoice exists in a persistent html format with the replacable elements like [Lastname}, etc. I can save this locally. we don't need to involve FB at all. Using that template, we now revert to your workflow using the basic template."
 
@@ -95,6 +95,69 @@ After copy succeeds, show: "Copied. Gmail opened—click in the body and paste (
 - ✅ Template is version-controlled (in git)
 - ✅ No Firebase storage needed
 - ✅ More flexible - full control over HTML structure/styling
+
+### Implementation Summary
+
+**Two-Editor Approach:**
+1. **Template Editor** (`billing/template-editor.html`) - Edit the base template with placeholders
+2. **Invoice Editor** (modal in admin dashboard) - Edit populated invoice before sending
+
+**Files Created:**
+- `billing/templates/invoice-template.html` - Base template with placeholders
+- `billing/template-editor.html` - Dedicated page for editing the template
+
+**Files Modified:**
+- `billing/admin.html` - Added "Invoice Template" button, invoice editor modal
+- `js/admin-dashboard.js` - Template loading, placeholder replacement, Quill integration
+- `js/config.js` - Version bump to 20251218v9
+
+### Key Technical Decisions
+
+**Issue #1: Quill Editor Not Showing Toolbar**
+- **Problem**: Loading full HTML document (DOCTYPE, html, head, body) into Quill
+- **Solution**: Extract only `<body>` content for editing, preserve `<head>` separately, reconstruct full HTML on save
+- **Result**: Toolbar now fully functional with all formatting controls
+
+**Issue #2: Template Not Editable in Browser**
+- **Problem**: Opening raw HTML file (`templates/invoice-template.html`) isn't editable
+- **Solution**: Created dedicated `template-editor.html` page with Quill editor
+- **Result**: Full WYSIWYG editing with download functionality
+
+**Editor Choice: Quill**
+- ✅ BSD license (completely free)
+- ✅ ~45KB, good balance of features
+- ✅ Full toolbar with formatting controls
+- ✅ HTML source toggle
+- ✅ Works well for email HTML
+
+### Workflow
+
+**Editing the Template:**
+1. Click "📝 Invoice Template" button in admin dashboard
+2. Opens `template-editor.html` in new tab
+3. Edit template with full formatting toolbar
+4. Click "Save Template" to download
+5. Replace `billing/templates/invoice-template.html` with downloaded file
+
+**Generating an Invoice:**
+1. Click "Generate Invoice" for a customer
+2. Invoice generated with payment link
+3. Click "Copy Formatted Invoice (HTML)"
+4. Editor modal opens with template populated (placeholders replaced)
+5. Edit invoice content if needed
+6. Click "Copy & Open Gmail"
+7. Gmail opens, paste formatted invoice
+
+### Placeholders Available
+
+- `[Greeting]` - Formatted greeting (e.g., "Hi Dr. Smith,")
+- `[Lastname]`, `[Firstname]`, `[Fullname]` - Customer name parts
+- `[Year]` - Invoice year
+- `[CardAmount]`, `[CheckAmount]`, `[CheckDiscount]` - Payment amounts
+- `[PaymentLink]`, `[PaymentLinkText]` - Stripe payment link
+- `[Address]` - Mailing address for checks
+- `[SupportPhone]`, `[FaxNumber]` - Contact info
+- `[Signature]` - Signature line
 
 ### Key Constraints
 - **Must work with existing workflow**: Editor should integrate with current "Copy Formatted Invoice (HTML)" flow
@@ -489,41 +552,33 @@ Generate Invoice → [Edit Invoice] → Copy HTML → Gmail Opens → Paste
 - `[FaxNumber]` - Fax number
 - `[Signature]` - Signature line
 
-### Questions for Discussion
+### Lessons Learned
 
-1. **Template Location**: Where should the template file be stored?
-   - Option A: `templates/invoice-template.html` (root level)
-   - Option B: `billing/templates/invoice-template.html` (with billing files)
-   - **Recommendation**: Option B (keeps billing-related files together)
+**Lesson 1: Quill Expects Body Content Only**
+- **Issue**: Loading full HTML document into Quill breaks the toolbar
+- **Solution**: Extract `<body>` content for editing, store `<head>` separately, reconstruct on save
+- **Application**: When using WYSIWYG editors, understand what content structure they expect
 
-2. **Template Format**: What placeholders do you want to use?
-   - I've suggested: `[Lastname]`, `[Year]`, `[Amount]`, `[PaymentLink]`, etc.
-   - Do you have a preferred format? (e.g., `{{Lastname}}`, `{Lastname}`, `[Lastname]`)
+**Lesson 2: Static HTML Files Aren't Editable in Browser**
+- **Issue**: Opening `templates/invoice-template.html` directly shows content but can't be edited
+- **Solution**: Create dedicated editor page with Quill that loads, edits, and saves the template
+- **Application**: For user-editable templates, provide a proper editing interface
 
-3. **Editor Choice**: Do you agree with Quill, or prefer Trix/TinyMCE?
-   - **Recommendation**: Quill (best balance of features and size)
+**Lesson 3: Two-Editor Approach for Templates**
+- **Template Editor**: Edit the base template with placeholders (one-time or occasional edits)
+- **Invoice Editor**: Edit populated invoices before sending (per-customer customization)
+- **Benefit**: Separation of concerns - template structure vs. invoice content
 
-4. **Workflow**: Should "Copy Formatted Invoice" open editor, or should there be a separate "Edit Invoice" button?
-   - **Recommendation**: "Copy Formatted Invoice (HTML)" opens editor, then "Copy & Open Gmail" button inside editor
+### Status: ✅ COMPLETE
 
-5. **Template Updates**: How do you want to handle template updates?
-   - Template file is in git, so you can edit it directly
-   - Changes take effect after page refresh (or we can add cache-busting)
-
-6. **Fallback**: If template file fails to load, should we:
-   - Fall back to programmatic generation (`generateEmailHTMLTemplate()`)?
-   - Show error message?
-   - **Recommendation**: Fall back to programmatic generation
-
-### Next Steps
-
-**Waiting for user confirmation** on:
-- Template file location preference
-- Placeholder format preference
-- Editor choice (Quill recommended)
-- Any specific requirements or preferences
-
-**Once confirmed, proceed to implementation as Executor.**
+All features implemented and working:
+- ✅ Template file with placeholders created
+- ✅ Template editor page with Quill (full toolbar)
+- ✅ Template loading and placeholder replacement
+- ✅ Invoice editor modal with Quill (full toolbar)
+- ✅ Copy to clipboard and Gmail integration
+- ✅ HTML source toggle in both editors
+- ✅ Fallback to programmatic generation if template fails
 
 ### Recent Changes Review (Planner Summary)
 - **Stripe Checkout Sessions**: Client (`js/admin-dashboard.js`) calls Vercel function `api/createCheckoutSession.js` which uses `price_data.unit_amount` so **custom amounts should work** and `receipt_email` is set for Stripe receipts.

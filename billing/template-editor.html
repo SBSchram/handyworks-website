@@ -165,7 +165,11 @@
         </div>
         
         <!-- Quill Editor -->
-        <div id="editor"></div>
+        <div id="editor" style="min-height: 400px;"></div>
+        
+        <div id="editorStatus" style="margin-top: 10px; color: #666; font-size: 0.85rem; font-style: italic;">
+            Loading template...
+        </div>
         
         <!-- HTML Source View -->
         <textarea id="htmlSource" placeholder="HTML source will appear here..."></textarea>
@@ -211,12 +215,19 @@
         // Load template from file
         async function loadTemplate() {
             try {
-                const response = await fetch('templates/invoice-template.html');
+                showMessage('Loading template...', 'success');
+                
+                // Try both possible paths
+                let response = await fetch('templates/invoice-template.html');
                 if (!response.ok) {
-                    throw new Error('Template file not found');
+                    response = await fetch('../templates/invoice-template.html');
+                }
+                if (!response.ok) {
+                    throw new Error('Template file not found. Make sure billing/templates/invoice-template.html exists.');
                 }
                 
                 const html = await response.text();
+                console.log('Template loaded, length:', html.length);
                 
                 // Extract head and body
                 const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
@@ -227,19 +238,33 @@
                 }
                 
                 const bodyContent = bodyMatch ? bodyMatch[1] : html;
+                console.log('Body content extracted, length:', bodyContent.length);
+                
+                // Wait for editor to be ready
+                if (!quill) {
+                    console.error('Quill editor not initialized');
+                    showMessage('Error: Editor not ready. Please refresh the page.', 'error');
+                    return;
+                }
                 
                 // Set content in editor
-                if (quill) {
-                    quill.root.innerHTML = bodyContent;
-                }
+                quill.root.innerHTML = bodyContent;
+                console.log('Content set in editor');
                 
                 // Update HTML source
                 document.getElementById('htmlSource').value = html;
                 
-                showMessage('Template loaded successfully!', 'success');
+                // Update status
+                const statusEl = document.getElementById('editorStatus');
+                if (statusEl) {
+                    statusEl.textContent = 'Template loaded. You can now edit the content above.';
+                    statusEl.style.color = '#28a745';
+                }
+                
+                showMessage('Template loaded successfully! You can now edit the content below.', 'success');
             } catch (error) {
                 console.error('Error loading template:', error);
-                showMessage('Error loading template: ' + error.message, 'error');
+                showMessage('Error loading template: ' + error.message + '. Check browser console for details.', 'error');
             }
         }
         
@@ -331,9 +356,25 @@ ${bodyContent}
         document.getElementById('loadTemplateButton').addEventListener('click', loadTemplate);
         document.getElementById('saveTemplateButton').addEventListener('click', saveTemplate);
         
-        // Initialize
-        initEditor();
-        loadTemplate();
+        // Initialize - wait for DOM and Quill to be ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initEditor();
+            // Small delay to ensure Quill is fully initialized
+            setTimeout(() => {
+                loadTemplate();
+            }, 100);
+        });
+        
+        // Also try if DOMContentLoaded already fired
+        if (document.readyState === 'loading') {
+            // DOMContentLoaded has not fired yet
+        } else {
+            // DOMContentLoaded has already fired
+            initEditor();
+            setTimeout(() => {
+                loadTemplate();
+            }, 100);
+        }
     </script>
 </body>
 </html>
