@@ -292,7 +292,7 @@
         noDataMessage.style.display = 'none';
         
         filteredUsers.forEach(user => {
-            const fullName = `${user.fname || ''} ${user.lname || ''}`.trim() || 'N/A';
+            const fullName = formatCustomerName(user);
             const activeInvoices = user.invoices?.filter(inv => inv.payment_status !== 'cancelled') || [];
             
             // Sort invoices oldest to newest
@@ -575,65 +575,98 @@
     window.deletePayment = async function(paymentFirestoreId, invoiceFirestoreId, event) {
         event.stopPropagation(); // Prevent any parent clicks
         
-        // Find the payment in current invoice
-        const payment = currentPaymentInvoice?.payments?.find(p => p.id === paymentFirestoreId);
-        
-        if (!payment) {
-            alert('Payment not found');
-            return;
-        }
-        
-        // Confirm deletion
-        const confirmMsg = 
-            `DELETE this payment record?\n\n` +
-            `Amount: $${formatCurrency(payment.amount)}\n` +
-            `Method: ${payment.payment_method || 'Unknown'}\n` +
-            `Date: ${payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A'}\n` +
-            `Reference: ${payment.payment_reference || 'None'}\n` +
-            `Recorded by: ${payment.recorded_by || 'Unknown'}\n\n` +
-            `This will PERMANENTLY DELETE the payment record.\n` +
-            `This action cannot be undone.`;
-        
-        if (!confirm(confirmMsg)) {
-            return;
-        }
-        
         try {
-            // Hard delete - completely remove from database
-            await db.collection('handyworks_payments').doc(paymentFirestoreId).delete();
+            // Get payment directly from Firebase
+            const paymentDoc = await db.collection('handyworks_payments').doc(paymentFirestoreId).get();
             
+            if (!paymentDoc.exists) {
+                alert('Payment not found. It may have already been deleted.');
+                return;
+            }
+            
+            const payment = paymentDoc.data();
+            const invoiceId = payment.invoice_id;
+            
+            // Get invoice to show details in confirmation
+            let invoice = null;
+            if (invoiceId) {
+                const invoiceQuery = await db.collection('handyworks_invoices')
+                    .where('invoice_id', '==', invoiceId)
+                    .limit(1)
+                    .get();
+                
+                if (!invoiceQuery.empty) {
+                    invoice = invoiceQuery.docs[0].data();
+                }
+            }
+            
+            // Confirm deletion
+            const confirmMsg = 
+                `DELETE this payment record?\n\n` +
+                `Amount: $${formatCurrency(payment.amount)}\n` +
+                `Method: ${payment.payment_method || 'Unknown'}\n` +
+                `Date: ${payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A'}\n` +
+                `Reference: ${payment.payment_reference || 'None'}\n` +
+                `Recorded by: ${payment.recorded_by || 'Unknown'}\n\n` +
+                `This will PERMANENTLY DELETE the payment record.\n` +
+                `This action cannot be undone.`;
+            
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            // Delete payment from Firebase
+            await db.collection('handyworks_payments').doc(paymentFirestoreId).delete();
             console.log(`Payment ${paymentFirestoreId} permanently deleted`);
             
             // Recalculate invoice status after payment deletion
-            const paymentsSnapshot = await db.collection('handyworks_payments')
-                .where('invoice_id', '==', currentPaymentInvoice.invoice_id)
-                .get();
-            
-            const totalPaid = paymentsSnapshot.docs.reduce((sum, doc) => {
-                return sum + (doc.data().amount || 0);
-            }, 0);
-            
-            // Update invoice status
-            const updateData = {
-                updated_at: firebase.firestore.Timestamp.now(),
-                updated_by: auth.currentUser?.email || 'admin'
-            };
-            
-            if (totalPaid >= currentPaymentInvoice.amount) {
-                updateData.payment_status = 'paid';
-                updateData.paid_date = firebase.firestore.Timestamp.now();
-            } else if (totalPaid === 0) {
-                updateData.payment_status = 'pending';
-                updateData.paid_date = null;
+            if (invoiceId) {
+                // Get remaining payments for this invoice
+                const paymentsSnapshot = await db.collection('handyworks_payments')
+                    .where('invoice_id', '==', invoiceId)
+                    .get();
+                
+                const totalPaid = paymentsSnapshot.docs.reduce((sum, doc) => {
+                    return sum + (doc.data().amount || 0);
+                }, 0);
+                
+                // Get invoice document ID
+                const invoiceQuery = await db.collection('handyworks_invoices')
+                    .where('invoice_id', '==', invoiceId)
+                    .limit(1)
+                    .get();
+                
+                if (!invoiceQuery.empty) {
+                    const invoiceDoc = invoiceQuery.docs[0];
+                    const invoiceAmount = invoiceDoc.data().amount || 0;
+                    
+                    // Update invoice status
+                    const updateData = {
+                        updated_at: firebase.firestore.Timestamp.now(),
+                        updated_by: auth.currentUser?.email || 'admin'
+                    };
+                    
+                    if (totalPaid >= invoiceAmount) {
+                        updateData.payment_status = 'paid';
+                        updateData.paid_date = firebase.firestore.Timestamp.now();
+                    } else if (totalPaid === 0) {
+                        updateData.payment_status = 'pending';
+                        updateData.paid_date = null;
+                    } else {
+                        updateData.payment_status = 'pending'; // Partial payment
+                    }
+                    
+                    await invoiceDoc.ref.update(updateData);
+                }
             }
-            
-            await db.collection('handyworks_invoices').doc(invoiceFirestoreId).update(updateData);
             
             // Reload users to refresh display
             await loadUsers();
             
-            // Close and reopen modal to show updated data
-            closePaymentModal();
+            // Close payment modal if it's open
+            if (currentPaymentInvoice) {
+                closePaymentModal();
+            }
             
             alert('Payment deleted successfully.');
             
@@ -675,7 +708,7 @@
         }
         
         // Confirm deletion
-        const customerName = `${user.fname} ${user.lname}`.trim();
+        const customerName = formatCustomerName(user);
         const confirmMsg = 
             `DELETE this invoice?\n\n` +
             `Customer: ${customerName}\n` +
@@ -781,7 +814,7 @@
         currentPaymentInvoice = invoice;
         
         // Populate invoice details
-        const customerName = `${user.fname} ${user.lname}`.trim();
+        const customerName = formatCustomerName(user);
         document.getElementById('paymentCustomerName').textContent = customerName;
         document.getElementById('paymentInvoiceId').textContent = invoice.invoice_id || 'N/A';
         document.getElementById('paymentYear').textContent = invoice.year || 'N/A';
@@ -883,7 +916,7 @@
             const paymentData = {
                 invoice_id: currentPaymentInvoice.invoice_id,
                 acct_num: currentPaymentUser.acct_num,
-                customer_name: `${currentPaymentUser.fname} ${currentPaymentUser.lname}`.trim(),
+                customer_name: formatCustomerName(currentPaymentUser),
                 customer_email: currentPaymentUser.email || '',
                 amount: amount,
                 payment_date: firebase.firestore.Timestamp.now(),
@@ -1169,10 +1202,11 @@
     let copyLinkButton = null;
     let copyEmailButton = null;
     let sendViaGmailButton = null;
+    let copyHTMLInvoiceButton = null;
     
     let currentUser = null;
     let modalInitialized = false;
-    let currentInvoiceId = null; // Store current invoice ID for marking as paid
+    let currentInvoiceData = null; // Store full invoice data (id, invoice_id, amount, year, etc.)
     let currentEmailData = null; // Store email data for Gmail integration
     
     // Initialize modal elements and event listeners
@@ -1195,6 +1229,7 @@
         copyLinkButton = document.getElementById('copyLinkButton');
         copyEmailButton = document.getElementById('copyEmailButton');
         sendViaGmailButton = document.getElementById('sendViaGmailButton');
+        copyHTMLInvoiceButton = document.getElementById('copyHTMLInvoiceButton');
         
         if (!invoiceModal) {
             console.error('Could not find invoice modal elements');
@@ -1271,64 +1306,154 @@
             window.open(gmailUrl, '_blank');
         });
         
-        // Mark as Paid button
-        const markAsPaidButton = document.getElementById('markAsPaidButton');
-        const manualPaymentMethod = document.getElementById('manualPaymentMethod');
-        
-        markAsPaidButton.addEventListener('click', async () => {
-            const paymentMethod = manualPaymentMethod.value;
-            
-            if (!paymentMethod) {
-                alert('Please select a payment method first.');
+        // Copy HTML Invoice button (formatted with rich text)
+        if (copyHTMLInvoiceButton) {
+            copyHTMLInvoiceButton.addEventListener('click', async () => {
+            if (!currentEmailData || !currentUser) {
+                alert('Email data not available. Please regenerate the invoice.');
                 return;
             }
             
-            if (!currentInvoiceId) {
-                alert('No invoice found. Please regenerate the invoice first.');
+            // Get payment link URL from the displayed element
+            const paymentUrl = paymentLinkUrl.textContent.trim();
+            if (!paymentUrl) {
+                alert('Payment link not available. Please regenerate the invoice.');
                 return;
             }
-            
-            const methodNames = {
-                'check': 'Check',
-                'phone_card': 'Phone (Credit Card)',
-                'fax_card': 'Fax (Credit Card)',
-                'cash': 'Cash',
-                'other': 'Other'
-            };
-            
-            const confirm = window.confirm(
-                `Mark this invoice as PAID?\n\n` +
-                `Payment Method: ${methodNames[paymentMethod]}\n` +
-                `Customer: ${currentUser.fname} ${currentUser.lname}\n` +
-                `Amount: $${invoiceAmount.value}\n\n` +
-                `This will update the invoice status to "paid" in the database.`
-            );
-            
-            if (!confirm) return;
             
             try {
-                markAsPaidButton.disabled = true;
-                markAsPaidButton.textContent = 'Processing...';
+                // Use stored invoice data if available, otherwise rebuild from current data
+                let invoiceData = currentInvoiceData;
+                if (!invoiceData) {
+                    invoiceData = {
+                        customer_name: formatCustomerName(currentUser) !== 'N/A' ? formatCustomerName(currentUser) : (currentUser.email || 'Customer'),
+                        customer_email: currentUser.email || '',
+                        year: getInvoiceYear(currentEmailData?.subject),
+                        acct_num: currentUser.acct_num
+                    };
+                }
                 
-                await markInvoiceAsPaid(currentInvoiceId, paymentMethod, parseFloat(invoiceAmount.value));
+                const paymentLink = { url: paymentUrl };
                 
-                showModalSuccess('✅ Invoice marked as PAID successfully!');
-                markAsPaidButton.textContent = '✓ Marked as Paid';
-                markAsPaidButton.style.background = '#6c757d';
-                manualPaymentMethod.disabled = true;
+                // Generate HTML template
+                const htmlContent = generateEmailHTMLTemplate(invoiceData, paymentLink);
                 
-                // Reload users to update dashboard
+                // Also generate plain text version for fallback
+                const plainTextContent = generateEmailTemplate(invoiceData, paymentLink);
+                const plainTextBody = plainTextContent.split('\n').slice(2).join('\n'); // Remove subject line
+                
+                // Copy to clipboard with both HTML and plain text formats
+                const clipboardItem = new ClipboardItem({
+                    'text/html': new Blob([htmlContent], { type: 'text/html' }),
+                    'text/plain': new Blob([plainTextBody], { type: 'text/plain' })
+                });
+                
+                await navigator.clipboard.write([clipboardItem]);
+                
+                // Show success message
+                const originalText = copyHTMLInvoiceButton.textContent;
+                copyHTMLInvoiceButton.textContent = '✓ Copied! Opening Gmail...';
+                copyHTMLInvoiceButton.style.background = '#28a745';
+                
+                // Open Gmail with only to/subject (no body, so user can paste HTML)
+                const gmailUrl = buildGmailComposeUrl(
+                    currentEmailData.to,
+                    currentEmailData.subject,
+                    null,
+                    false // Don't include body - user will paste HTML
+                );
+                
+                // Open Gmail in new window
+                window.open(gmailUrl, '_blank');
+                
+                // Show helpful message
                 setTimeout(() => {
-                    loadUsers();
-                }, 1000);
+                    showModalSuccess('✅ Formatted invoice copied to clipboard! Gmail opened. Paste (Ctrl+V / Cmd+V) into the email body to insert the formatted invoice.');
+                }, 500);
+                
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    copyHTMLInvoiceButton.textContent = originalText;
+                    copyHTMLInvoiceButton.style.background = '';
+                }, 3000);
                 
             } catch (error) {
-                console.error('Error marking as paid:', error);
-                showModalError(`Failed to mark as paid: ${error.message}`);
-                markAsPaidButton.disabled = false;
-                markAsPaidButton.textContent = '✓ Mark as Paid';
+                console.error('Error copying HTML invoice:', error);
+                
+                // Fallback: try plain text copy
+                try {
+                    let invoiceData = currentInvoiceData;
+                    if (!invoiceData) {
+                        invoiceData = {
+                            customer_name: formatCustomerName(currentUser) !== 'N/A' ? formatCustomerName(currentUser) : (currentUser.email || 'Customer'),
+                            customer_email: currentUser.email || '',
+                            year: getInvoiceYear(currentEmailData?.subject),
+                            acct_num: currentUser.acct_num
+                        };
+                    }
+                    
+                    const plainTextContent = generateEmailTemplate(invoiceData, { url: paymentUrl });
+                    const plainTextBody = plainTextContent.split('\n').slice(2).join('\n');
+                    
+                    await navigator.clipboard.writeText(plainTextBody);
+                    alert('HTML copy failed, but plain text was copied. Please paste into Gmail.');
+                    
+                    const gmailUrl = buildGmailComposeUrl(
+                        currentEmailData.to,
+                        currentEmailData.subject,
+                        null,
+                        false
+                    );
+                    window.open(gmailUrl, '_blank');
+                } catch (fallbackError) {
+                    console.error('Fallback copy also failed:', fallbackError);
+                    alert('Failed to copy to clipboard. Your browser may not support this feature. Please use "Copy Email Template" instead.');
+                }
             }
         });
+        }
+        
+        // Record Payment button (replaces "Mark as Paid" - opens Payment Recording Modal)
+        const recordPaymentFromInvoiceButton = document.getElementById('markAsPaidButton');
+        const manualPaymentMethod = document.getElementById('manualPaymentMethod');
+        
+        if (recordPaymentFromInvoiceButton) {
+            // Change button text to reflect new functionality
+            recordPaymentFromInvoiceButton.textContent = '✓ Record Payment';
+            
+            recordPaymentFromInvoiceButton.addEventListener('click', async () => {
+                if (!currentInvoiceData || !currentUser) {
+                    alert('Invoice data not available. Please regenerate the invoice first.');
+                    return;
+                }
+                
+                // Find the invoice in allUsers to get full invoice object with payments
+                const user = allUsers.find(u => u.acct_num === currentUser.acct_num);
+                if (!user || !user.invoices) {
+                    alert('User or invoice data not found. Please refresh the page.');
+                    return;
+                }
+                
+                // Find the invoice by invoice_id
+                const invoice = user.invoices.find(inv => 
+                    inv.invoice_id === currentInvoiceData.invoice_id || 
+                    inv.id === currentInvoiceData.id
+                );
+                
+                if (!invoice) {
+                    alert('Invoice not found. Please refresh the page.');
+                    return;
+                }
+                
+                // Close invoice modal and open payment recording modal
+                closeInvoiceModal();
+                
+                // Small delay to ensure modal closes before opening new one
+                setTimeout(() => {
+                    openPaymentModal(user, invoice);
+                }, 200);
+            });
+        }
         
         modalInitialized = true;
         console.log('Invoice modal initialized successfully');
@@ -1348,7 +1473,7 @@
         
         // Populate form
         document.getElementById('invoiceAcctNum').value = user.acct_num || '';
-        document.getElementById('invoiceName').value = `${user.fname || ''} ${user.lname || ''}`.trim();
+        document.getElementById('invoiceName').value = formatCustomerName(user);
         document.getElementById('invoiceEmail').value = user.email || '';
         
         // Set defaults
@@ -1412,7 +1537,7 @@
         const billingYear = currentYear + 1; // We always bill next year
         const invoiceData = {
             acct_num: currentUser.acct_num,
-            customer_name: `${currentUser.fname || ''} ${currentUser.lname || ''}`.trim(),
+            customer_name: formatCustomerName(currentUser),
             customer_email: currentUser.email || '',
             clinic_name: currentUser.clinic || '', // Keep for database if present, not shown in form
             year: billingYear,
@@ -1428,11 +1553,11 @@
         
         // Check for existing invoice (enhanced with payment checking)
         try {
-            showModalLoading();
+            showModalSuccess('Loading...');
             const existingInvoice = await checkExistingInvoice(invoiceData.acct_num, invoiceData.year);
             
             if (existingInvoice) {
-                hideModalLoading();
+                hideModalMessages();
                 
                 // Get payments for this invoice
                 const paymentsSnapshot = await db.collection('handyworks_payments')
@@ -1493,7 +1618,17 @@
                     if (!replaceInvoice) {
                         // User chose not to replace - show existing invoice if it has a payment link
                         if (existingInvoice.payment_status === 'pending' && existingInvoice.stripe_payment_link_url) {
-                            currentInvoiceId = existingInvoice.id;
+                            // Store full invoice data
+                            currentInvoiceData = {
+                                id: existingInvoice.id,
+                                invoice_id: existingInvoice.invoice_id,
+                                acct_num: existingInvoice.acct_num,
+                                customer_name: existingInvoice.customer_name,
+                                customer_email: existingInvoice.customer_email,
+                                year: existingInvoice.year,
+                                amount: existingInvoice.amount,
+                                ...existingInvoice
+                            };
                             showInvoiceSuccess(
                                 { url: existingInvoice.stripe_payment_link_url },
                                 generateEmailTemplate(invoiceData, { url: existingInvoice.stripe_payment_link_url }),
@@ -1535,7 +1670,18 @@
             // Step 2: Save invoice to Firestore
             showModalSuccess('Saving invoice to database...');
             const invoiceId = await saveInvoiceToFirestore(invoiceData, paymentLink);
-            currentInvoiceId = invoiceId; // Store for mark as paid functionality
+            
+            // Store full invoice data for later use
+            currentInvoiceData = {
+                id: invoiceId,
+                invoice_id: invoiceData.invoice_id || `INV-${invoiceData.year}-${invoiceData.acct_num}`,
+                acct_num: invoiceData.acct_num,
+                customer_name: invoiceData.customer_name,
+                customer_email: invoiceData.customer_email,
+                year: invoiceData.year,
+                amount: invoiceData.amount,
+                ...invoiceData
+            };
             
             // Step 3: Generate email template
             const emailText = generateEmailTemplate(invoiceData, paymentLink);
@@ -1689,28 +1835,11 @@
         }
     }
     
-    // Mark invoice as paid (for manual payments)
-    async function markInvoiceAsPaid(invoiceId, paymentMethod, amount) {
-        try {
-            const updateData = {
-                payment_status: 'paid',
-                payment_method: paymentMethod,
-                paid_date: firebase.firestore.Timestamp.now(),
-                paid_amount: amount,
-                transaction_ref: `manual_${Date.now()}`,
-                updated_at: firebase.firestore.Timestamp.now(),
-                updated_by: auth.currentUser?.email || 'admin',
-            };
-            
-            await db.collection('handyworks_invoices').doc(invoiceId).update(updateData);
-            console.log(`Invoice ${invoiceId} marked as paid via ${paymentMethod}`);
-        } catch (error) {
-            console.error('Error marking invoice as paid:', error);
-            throw error;
-        }
-    }
+    // Removed markInvoiceAsPaid() - use Payment Recording Modal instead
+    // This ensures payment records are created in handyworks_payments collection
+    // which is the source of truth for payment totals
     
-    // Generate email template
+    // Generate email template (plain text)
     function generateEmailTemplate(invoiceData, paymentLink) {
         // Get business settings
         const settings = getBusinessSettings();
@@ -1763,13 +1892,165 @@ Best regards,
 Dr. Steve`;
     }
     
+    // Generate HTML email template (formatted for rich text email)
+    function generateEmailHTMLTemplate(invoiceData, paymentLink) {
+        // Get business settings
+        const settings = getBusinessSettings();
+        
+        // Calculate check discount
+        const checkDiscount = settings.cardAmount - settings.checkAmount;
+        
+        // Format customer name based on salutation setting
+        let greeting;
+        if (settings.salutation === 'none') {
+            // Use first name only
+            greeting = `Hi ${invoiceData.customer_name.split(' ')[0]},`;
+        } else {
+            // Use title + last name (e.g., "Dr. Smith")
+            const nameParts = invoiceData.customer_name.split(' ');
+            const lastName = nameParts[nameParts.length - 1];
+            greeting = `Hi ${settings.salutation} ${lastName},`;
+        }
+        
+        // Escape HTML to prevent XSS
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+        
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .greeting {
+            font-weight: normal;
+            margin-bottom: 20px;
+        }
+        .intro {
+            margin-bottom: 20px;
+        }
+        .amount-section {
+            background-color: #f8f9fa;
+            border-left: 4px solid #008080;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .options {
+            margin: 20px 0;
+        }
+        .payment-option {
+            margin: 15px 0;
+            padding: 10px;
+        }
+        .payment-link {
+            display: inline-block;
+            background-color: #008080;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .payment-link:hover {
+            background-color: #006666;
+        }
+        .check-address {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-line;
+        }
+        .terms {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 0.95em;
+            color: #666;
+        }
+        .closing {
+            margin-top: 30px;
+        }
+        .signature {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="greeting">${escapeHtml(greeting)}</div>
+    
+    <div class="intro">
+        <p>We are doing our billing differently this year!</p>
+        
+        <p>Rather than mail the invoice, we are using this email with a payment link included. While you can still call us with your credit card info or send via a fax, we thought this method would be easier. And rather than wait till January 1 to send the invoice, we are doing it just before the end of the year. With that in mind...</p>
+    </div>
+    
+    <div class="amount-section">
+        <p><strong>Your annual HandyWorks maintenance fee for ${escapeHtml(invoiceData.year.toString())} is coming due.</strong> We are keeping the amount the same as last year ($${escapeHtml(settings.cardAmount.toString())}), even while our expenses have gone up.</p>
+    </div>
+    
+    <div class="options">
+        <p><strong>Options:</strong></p>
+        
+        <div class="payment-option">
+            <p><strong>Pay $${escapeHtml(settings.cardAmount.toString())} via Stripe:</strong></p>
+            <a href="${escapeHtml(paymentLink.url)}" class="payment-link">Pay Online via Stripe</a>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>Pay $${escapeHtml(settings.checkAmount.toString())} by check and save $${escapeHtml(checkDiscount.toString())}.</strong> You can send a check to:</p>
+            <div class="check-address">Chapter 1 Software Inc
+140 E 28th Street
+Suite 1F
+New York City, NY 10016</div>
+        </div>
+    </div>
+    
+    <div class="terms">
+        <p>As in the past, we charge maintenance once per calendar year and this invoice covers HandyWork support charges for ${escapeHtml(invoiceData.year.toString())}. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.</p>
+    </div>
+    
+    <div class="closing">
+        <p>Thank you for your continued business! We appreciate your support and look forward to serving you in ${escapeHtml(invoiceData.year.toString())}.</p>
+        
+        <p>If you have any questions about this invoice, please don't hesitate to contact us.</p>
+    </div>
+    
+    <div class="signature">
+        <p>Best regards,</p>
+        <p>Dr. Steve</p>
+    </div>
+</body>
+</html>`;
+    }
+    
     // Build Gmail compose URL
-    function buildGmailComposeUrl(to, subject, body) {
+    // includeBody: if false, only includes to/subject (for HTML paste workflow)
+    function buildGmailComposeUrl(to, subject, body = null, includeBody = true) {
         const params = new URLSearchParams({
             to: to,
-            su: subject,
-            body: body
+            su: subject
         });
+        if (includeBody && body) {
+            params.append('body', body);
+        }
         return `https://mail.google.com/mail/?view=cm&fs=1&${params.toString()}`;
     }
     
@@ -1831,13 +2112,8 @@ Dr. Steve`;
         modalErrorMessage.style.display = 'none';
     }
     
-    function showModalLoading() {
-        showModalSuccess('Loading...');
-    }
-    
-    function hideModalLoading() {
-        hideModalMessages();
-    }
+    // Removed showModalLoading() - use showModalSuccess('Loading...') directly
+    // Removed hideModalLoading() - use hideModalMessages() directly
     
     function setGenerateButtonLoading(isLoading) {
         if (isLoading) {
@@ -1855,6 +2131,21 @@ Dr. Steve`;
     function formatCurrency(amount) {
         // Amount is already in dollars (not cents)
         return parseFloat(amount || 0).toFixed(2);
+    }
+    
+    // Format customer name from user object
+    function formatCustomerName(user) {
+        if (!user) return 'N/A';
+        return `${user.fname || ''} ${user.lname || ''}`.trim() || 'N/A';
+    }
+    
+    // Extract year from invoice subject or use next year
+    function getInvoiceYear(subject = null) {
+        if (subject) {
+            const yearMatch = subject.match(/\d{4}/);
+            if (yearMatch) return parseInt(yearMatch[0]);
+        }
+        return new Date().getFullYear() + 1;
     }
     
     function showLoading() {

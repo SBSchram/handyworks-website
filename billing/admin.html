@@ -9,9 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - HandyWorks Billing</title>
-    <link rel="stylesheet" href="../css/style.css?v=20251217v15">
-    <script src="../js/config.js?v=20251217v15"></script>
-    <script src="../js/header-footer.js?v=20251217v15" defer></script>
+    <link rel="stylesheet" href="../css/style.css?v=20251218v2">
+    <script src="../js/config.js?v=20251218v2"></script>
+    <script src="../js/header-footer.js?v=20251218v2" defer></script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -735,31 +735,29 @@
                         <button class="btn-copy" id="copyLinkButton">Copy Payment Link</button>
                         
                         <p style="margin-top: 1rem;"><strong>Email Invoice:</strong></p>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                            <button class="btn-generate" id="sendViaGmailButton" style="flex: 1; background: #EA4335;">
-                                📧 Send via Gmail
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                            <button class="btn-generate" id="sendViaGmailButton" style="flex: 1; min-width: 150px; background: #EA4335;">
+                                📧 Send via Gmail (Plain Text)
                             </button>
-                            <button class="btn-copy" id="copyEmailButton" style="flex: 1;">
+                            <button class="btn-copy" id="copyEmailButton" style="flex: 1; min-width: 150px;">
                                 📋 Copy Email Template
                             </button>
-                        </div>
-                        
-                        <p style="margin-top: 1rem;"><strong>Record Manual Payment:</strong></p>
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                            <select id="manualPaymentMethod" style="flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
-                                <option value="">Select payment method...</option>
-                                <option value="check">Check Payment</option>
-                                <option value="phone_card">Phone (Credit Card)</option>
-                                <option value="fax_card">Fax (Credit Card)</option>
-                                <option value="cash">Cash</option>
-                                <option value="other">Other</option>
-                            </select>
-                            <button class="btn-generate" id="markAsPaidButton" style="flex: 0 0 auto; background: #28a745;">
-                                ✓ Mark as Paid
+                            <button class="btn-copy" id="copyHTMLInvoiceButton" style="flex: 1; min-width: 150px; background: #008080; color: white;">
+                                🎨 Copy Formatted Invoice (HTML)
                             </button>
                         </div>
                         <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
-                            Use this to record payments received via check, phone, fax, or other non-Stripe methods.
+                            <strong>HTML Option:</strong> Copies formatted invoice with styling. Gmail will open with To/Subject filled - just paste (Ctrl+V / Cmd+V) into the email body.
+                        </p>
+                        
+                        <p style="margin-top: 1rem;"><strong>Record Manual Payment:</strong></p>
+                        <div style="margin-bottom: 1rem;">
+                            <button class="btn-generate" id="markAsPaidButton" style="width: 100%; background: #28a745;">
+                                ✓ Record Payment
+                            </button>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+                            Click to open the Payment Recording Modal to record payments received via check, phone, fax, or other non-Stripe methods. This creates a proper payment record that updates invoice totals.
                         </p>
                         
                         <details style="margin-top: 1rem;">
@@ -862,7 +860,7 @@
         <!-- Footer content will be inserted by header-footer.js -->
     </footer>
 
-    <script src="../js/admin-dashboard.js?v=20251217v15"></script>
+    <script src="../js/admin-dashboard.js?v=20251218v2"></script>
 </body>
 </html>
 
