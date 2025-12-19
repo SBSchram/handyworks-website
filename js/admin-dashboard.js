@@ -1103,6 +1103,7 @@
     let invoiceEditorModal = null;
     let isHtmlSourceView = false;
     let editedInvoiceHtml = null;
+    let invoiceTemplateHead = null; // Store the <head> section separately
     
     // Load invoice template and replace placeholders
     async function loadInvoiceTemplate(invoiceData, paymentLink) {
@@ -1165,7 +1166,15 @@ New York City, NY 10016`;
                 templateHtml = templateHtml.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
             }
             
-            return templateHtml;
+            // Extract head and body sections
+            const headMatch = templateHtml.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+            const bodyMatch = templateHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            
+            return {
+                full: templateHtml,
+                head: headMatch ? headMatch[0] : '',
+                body: bodyMatch ? bodyMatch[1] : templateHtml // Fallback to full if no body tag
+            };
         } catch (error) {
             console.error('Error loading template:', error);
             // Fallback to programmatic generation
@@ -1187,7 +1196,22 @@ New York City, NY 10016`;
         
         // Load template and replace placeholders
         try {
-            const htmlContent = await loadInvoiceTemplate(invoiceData, paymentLink);
+            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink);
+            
+            // Handle both old format (string) and new format (object)
+            let bodyContent, fullHtml;
+            if (typeof templateData === 'string') {
+                // Legacy format - extract body content
+                const bodyMatch = templateData.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                bodyContent = bodyMatch ? bodyMatch[1] : templateData;
+                fullHtml = templateData;
+                invoiceTemplateHead = templateData.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[0] || '';
+            } else {
+                // New format - use body content for editing
+                bodyContent = templateData.body;
+                fullHtml = templateData.full;
+                invoiceTemplateHead = templateData.head;
+            }
             
             // Initialize Quill editor if not already initialized
             if (!invoiceEditorQuill) {
@@ -1201,26 +1225,33 @@ New York City, NY 10016`;
                     theme: 'snow',
                     modules: {
                         toolbar: [
-                            [{ 'header': [1, 2, 3, false] }],
+                            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                            [{ 'size': ['small', false, 'large', 'huge'] }],
                             ['bold', 'italic', 'underline', 'strike'],
                             [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'script': 'sub'}, { 'script': 'super' }],
+                            [{ 'indent': '-1'}, { 'indent': '+1' }],
+                            [{ 'direction': 'rtl' }],
                             [{ 'color': [] }, { 'background': [] }],
-                            ['link'],
+                            [{ 'font': [] }],
+                            [{ 'align': [] }],
+                            ['link', 'image', 'video'],
+                            ['blockquote', 'code-block'],
                             ['clean']
                         ]
                     }
                 });
             }
             
-            // Set content
-            invoiceEditorQuill.root.innerHTML = htmlContent;
+            // Set content (only body content for editing)
+            invoiceEditorQuill.root.innerHTML = bodyContent;
             isHtmlSourceView = false;
             editedInvoiceHtml = null;
             
-            // Update HTML source textarea
+            // Update HTML source textarea with full HTML
             const htmlSourceTextarea = document.getElementById('invoiceEditorHtmlSource');
             if (htmlSourceTextarea) {
-                htmlSourceTextarea.value = htmlContent;
+                htmlSourceTextarea.value = fullHtml;
             }
             
             // Show editor, hide source
@@ -1262,14 +1293,25 @@ New York City, NY 10016`;
         isHtmlSourceView = !isHtmlSourceView;
         
         if (isHtmlSourceView) {
-            // Switch to HTML source view
-            htmlSourceTextarea.value = invoiceEditorQuill.root.innerHTML;
+            // Switch to HTML source view - reconstruct full HTML
+            const bodyContent = invoiceEditorQuill.root.innerHTML;
+            const fullHtml = `<!DOCTYPE html>
+<html>
+${invoiceTemplateHead || '<head><meta charset="UTF-8"></head>'}
+<body>
+${bodyContent}
+</body>
+</html>`;
+            htmlSourceTextarea.value = fullHtml;
             editorContainer.style.display = 'none';
             htmlSourceTextarea.style.display = 'block';
             toggleButton.textContent = 'View WYSIWYG Editor';
         } else {
-            // Switch to WYSIWYG view
-            invoiceEditorQuill.root.innerHTML = htmlSourceTextarea.value;
+            // Switch to WYSIWYG view - extract body content
+            const fullHtml = htmlSourceTextarea.value;
+            const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            const bodyContent = bodyMatch ? bodyMatch[1] : fullHtml;
+            invoiceEditorQuill.root.innerHTML = bodyContent;
             editorContainer.style.display = 'block';
             htmlSourceTextarea.style.display = 'none';
             toggleButton.textContent = 'View HTML Source';
@@ -1286,12 +1328,20 @@ New York City, NY 10016`;
         const editorContainer = document.getElementById('invoiceEditor');
         const htmlSourceTextarea = document.getElementById('invoiceEditorHtmlSource');
         
-        // Get HTML content (from source view if active, otherwise from editor)
+        // Get HTML content (from source view if active, otherwise reconstruct from editor)
         let htmlContent;
         if (isHtmlSourceView && htmlSourceTextarea) {
             htmlContent = htmlSourceTextarea.value;
         } else {
-            htmlContent = invoiceEditorQuill.root.innerHTML;
+            // Reconstruct full HTML document from edited body content
+            const bodyContent = invoiceEditorQuill.root.innerHTML;
+            htmlContent = `<!DOCTYPE html>
+<html>
+${invoiceTemplateHead || '<head><meta charset="UTF-8"></head>'}
+<body>
+${bodyContent}
+</body>
+</html>`;
         }
         
         // Store edited HTML
