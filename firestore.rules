@@ -119,7 +119,21 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isAdmin();
     }
     
-    // Deny all other collections
+    // Collection: handyworks_settings (for system settings like invoice templates)
+    match /handyworks_settings/{settingId} {
+      // Only admins can read/write settings
+      allow read, write: if isAuthenticated() && isAdmin();
+      allow create: if isAuthenticated() && isAdmin();
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
+    // Global admin access: Admins can read/write ANY collection
+    // This allows admins to manage new collections without updating rules
+    match /{collection}/{document=**} {
+      allow read, write: if isAuthenticated() && isAdmin();
+    }
+    
+    // Deny all other access (non-admin, non-matching collections)
     match /{document=**} {
       allow read, write: if false;
     }
