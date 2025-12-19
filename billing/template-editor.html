@@ -162,6 +162,7 @@
             <button class="btn btn-secondary" id="toggleHtmlButton">View HTML Source</button>
             <button class="btn btn-primary" id="loadTemplateButton">Reload Template</button>
             <button class="btn btn-success" id="saveTemplateButton">Save Template</button>
+            <button class="btn btn-secondary" id="testEditorButton" style="background: #ffc107; color: #000;">Test Editor</button>
         </div>
         
         <!-- Quill Editor -->
@@ -215,47 +216,102 @@
         // Load template from file
         async function loadTemplate() {
             try {
+                const statusEl = document.getElementById('editorStatus');
+                if (statusEl) {
+                    statusEl.textContent = 'Loading template...';
+                    statusEl.style.color = '#666';
+                }
                 showMessage('Loading template...', 'success');
                 
-                // Try both possible paths
-                let response = await fetch('templates/invoice-template.html');
-                if (!response.ok) {
-                    response = await fetch('../templates/invoice-template.html');
+                // Wait for editor to be ready
+                if (!quill) {
+                    console.error('Quill editor not initialized');
+                    if (statusEl) {
+                        statusEl.textContent = 'Error: Editor not ready. Please refresh the page.';
+                        statusEl.style.color = '#dc3545';
+                    }
+                    showMessage('Error: Editor not ready. Please refresh the page.', 'error');
+                    return;
                 }
-                if (!response.ok) {
-                    throw new Error('Template file not found. Make sure billing/templates/invoice-template.html exists.');
+                
+                // Try multiple possible paths
+                let response = null;
+                const paths = [
+                    'templates/invoice-template.html',
+                    './templates/invoice-template.html',
+                    '../templates/invoice-template.html',
+                    'billing/templates/invoice-template.html'
+                ];
+                
+                for (const path of paths) {
+                    try {
+                        response = await fetch(path);
+                        if (response.ok) {
+                            console.log('Template found at:', path);
+                            break;
+                        }
+                    } catch (e) {
+                        console.log('Path failed:', path, e);
+                        continue;
+                    }
+                }
+                
+                if (!response || !response.ok) {
+                    throw new Error('Template file not found. Tried: ' + paths.join(', '));
                 }
                 
                 const html = await response.text();
                 console.log('Template loaded, length:', html.length);
+                console.log('First 200 chars:', html.substring(0, 200));
                 
                 // Extract head and body
                 const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
                 const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
                 
+                console.log('Head match:', headMatch ? 'Found' : 'Not found');
+                console.log('Body match:', bodyMatch ? 'Found' : 'Not found');
+                
                 if (headMatch) {
                     templateHead = headMatch[0];
                 }
                 
-                const bodyContent = bodyMatch ? bodyMatch[1] : html;
-                console.log('Body content extracted, length:', bodyContent.length);
+                let bodyContent = bodyMatch ? bodyMatch[1] : html;
                 
-                // Wait for editor to be ready
-                if (!quill) {
-                    console.error('Quill editor not initialized');
-                    showMessage('Error: Editor not ready. Please refresh the page.', 'error');
-                    return;
+                // If no body tag found, try to extract content after <body> or use full HTML
+                if (!bodyMatch && html.includes('<body')) {
+                    const bodyStart = html.indexOf('<body');
+                    const bodyEnd = html.indexOf('</body>');
+                    if (bodyStart !== -1 && bodyEnd !== -1) {
+                        bodyContent = html.substring(bodyStart + 5, bodyEnd);
+                        // Remove any attributes from body tag
+                        bodyContent = bodyContent.replace(/^[^>]*>/, '');
+                    }
                 }
                 
-                // Set content in editor
-                quill.root.innerHTML = bodyContent;
-                console.log('Content set in editor');
+                console.log('Body content extracted, length:', bodyContent.length);
+                console.log('Body content preview:', bodyContent.substring(0, 200));
                 
-                // Update HTML source
+                // Update HTML source first
                 document.getElementById('htmlSource').value = html;
                 
+                // Set content in editor using Quill's API
+                // Clear first, then set content
+                quill.setText('');
+                
+                // Try multiple methods to set content
+                try {
+                    quill.clipboard.dangerouslyPasteHTML(bodyContent);
+                } catch (e) {
+                    console.log('dangerouslyPasteHTML failed, trying innerHTML:', e);
+                    quill.root.innerHTML = bodyContent;
+                }
+                
+                // Force update
+                quill.update();
+                
+                console.log('Content set in editor. Editor HTML length:', quill.root.innerHTML.length);
+                
                 // Update status
-                const statusEl = document.getElementById('editorStatus');
                 if (statusEl) {
                     statusEl.textContent = 'Template loaded. You can now edit the content above.';
                     statusEl.style.color = '#28a745';
@@ -264,7 +320,12 @@
                 showMessage('Template loaded successfully! You can now edit the content below.', 'success');
             } catch (error) {
                 console.error('Error loading template:', error);
-                showMessage('Error loading template: ' + error.message + '. Check browser console for details.', 'error');
+                const statusEl = document.getElementById('editorStatus');
+                if (statusEl) {
+                    statusEl.textContent = 'Error: ' + error.message;
+                    statusEl.style.color = '#dc3545';
+                }
+                showMessage('Error loading template: ' + error.message + '. Check browser console (F12) for details.', 'error');
             }
         }
         
@@ -351,30 +412,42 @@ ${bodyContent}
             }, 5000);
         }
         
+        // Test editor function
+        function testEditor() {
+            if (!quill) {
+                alert('Editor not initialized!');
+                return;
+            }
+            
+            // Set test content
+            quill.clipboard.dangerouslyPasteHTML('<p><strong>Test Content</strong></p><p>If you see this, the editor is working!</p><p>Placeholder: [Greeting]</p>');
+            showMessage('Test content added. If you see it, the editor works!', 'success');
+            
+            const statusEl = document.getElementById('editorStatus');
+            if (statusEl) {
+                statusEl.textContent = 'Test content loaded. Editor is working!';
+                statusEl.style.color = '#28a745';
+            }
+        }
+        
         // Event listeners
         document.getElementById('toggleHtmlButton').addEventListener('click', toggleHtmlView);
         document.getElementById('loadTemplateButton').addEventListener('click', loadTemplate);
         document.getElementById('saveTemplateButton').addEventListener('click', saveTemplate);
+        document.getElementById('testEditorButton').addEventListener('click', testEditor);
         
-        // Initialize - wait for DOM and Quill to be ready
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            console.log('Page loaded, initializing editor...');
             initEditor();
-            // Small delay to ensure Quill is fully initialized
+            console.log('Editor initialized, quill object:', quill);
+            
+            // Wait a bit longer to ensure Quill is fully ready
             setTimeout(() => {
+                console.log('Loading template...');
                 loadTemplate();
-            }, 100);
+            }, 300);
         });
-        
-        // Also try if DOMContentLoaded already fired
-        if (document.readyState === 'loading') {
-            // DOMContentLoaded has not fired yet
-        } else {
-            // DOMContentLoaded has already fired
-            initEditor();
-            setTimeout(() => {
-                loadTemplate();
-            }, 100);
-        }
     </script>
 </body>
 </html>
