@@ -167,7 +167,6 @@
             <button class="btn btn-secondary" id="toggleHtmlButton">View HTML Source</button>
             <button class="btn btn-primary" id="loadTemplateButton">Reload Template</button>
             <button class="btn btn-success" id="saveTemplateButton">Save Template</button>
-            <button class="btn btn-secondary" id="testEditorButton" style="background: #ffc107; color: #000;">Test Editor</button>
         </div>
         
         <!-- Quill Editor -->
@@ -489,29 +488,10 @@ ${bodyContent}
             }, 5000);
         }
         
-        // Test editor function
-        function testEditor() {
-            if (!quill) {
-                alert('Editor not initialized!');
-                return;
-            }
-            
-            // Set test content
-            quill.clipboard.dangerouslyPasteHTML('<p><strong>Test Content</strong></p><p>If you see this, the editor is working!</p><p>Placeholder: [Greeting]</p>');
-            showMessage('Test content added. If you see it, the editor works!', 'success');
-            
-            const statusEl = document.getElementById('editorStatus');
-            if (statusEl) {
-                statusEl.textContent = 'Test content loaded. Editor is working!';
-                statusEl.style.color = '#28a745';
-            }
-        }
-        
         // Event listeners
         document.getElementById('toggleHtmlButton').addEventListener('click', toggleHtmlView);
         document.getElementById('loadTemplateButton').addEventListener('click', loadTemplate);
         document.getElementById('saveTemplateButton').addEventListener('click', saveTemplate);
-        document.getElementById('testEditorButton').addEventListener('click', testEditor);
         
         // Initialize when page loads
         window.addEventListener('load', () => {
