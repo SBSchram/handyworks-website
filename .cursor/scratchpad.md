@@ -33,13 +33,13 @@
 ## ✅ PLANNER (2025-12-18): Gmail Invoice Formatting via HTML Clipboard + Paste
 
 ### Background and Motivation
-The current “Send via Gmail” approach uses a Gmail compose URL with a **plain-text** body. Gmail URLs do not reliably support rich formatting, so invoices look messy.
+The current "Send via Gmail" approach uses a Gmail compose URL with a **plain-text** body. Gmail URLs do not reliably support rich formatting, so invoices look messy.
 
 Goal: generate a **formatted HTML invoice**, copy it to clipboard as rich text, open Gmail compose (To/Subject filled), then you paste the invoice into Gmail with correct formatting.
 
 ### Key Constraints
 - **We cannot auto-paste into Gmail** (browser security). You must paste manually.
-- **Clipboard HTML isn’t supported everywhere**. We need a fallback to plain text copy.
+- **Clipboard HTML isn't supported everywhere**. We need a fallback to plain text copy.
 
 ### High-level Task Breakdown (Plan)
 #### Task A: Build HTML invoice generator
@@ -52,7 +52,7 @@ Add a function alongside `generateEmailTemplate` that produces:
 - Uses the same invoice data you already generate (customer, year, amount, payment link, address/support/fax text).
 - Escapes user-provided fields to avoid accidental HTML injection.
 
-#### Task B: Copy “rich text” to clipboard (with fallback)
+#### Task B: Copy "rich text" to clipboard (with fallback)
 Add `copyInvoiceToClipboard({ html, text })` using:
 - `navigator.clipboard.write([new ClipboardItem({ 'text/html': ..., 'text/plain': ... })])`
 - fallback to `navigator.clipboard.writeText(text)` when rich copy fails.
@@ -66,14 +66,464 @@ For the formatted flow, open Gmail compose with **To + Subject only** (empty bod
 
 **Success criteria:**
 - After clicking the new button: clipboard is ready, Gmail opens, paste works.
-- Existing “Send via Gmail” and “Copy Email Template” remain unchanged as fallback.
+- Existing "Send via Gmail" and "Copy Email Template" remain unchanged as fallback.
 
 #### Task D: Small UX guidance
-After copy succeeds, show: “Copied. Gmail opened—click in the body and paste (Ctrl+V).”
+After copy succeeds, show: "Copied. Gmail opened—click in the body and paste (Ctrl+V)."
 
 ### Review Notes (current code reality)
 - Current code already has `buildGmailComposeUrl()` + `sendViaGmailButton` in `js/admin-dashboard.js`.
 - Current email template is plain text (`generateEmailTemplate`), which is why formatting is limited.
+
+---
+
+## 🎯 PLANNER (2025-12-18): HTML Template-Based Invoice with Editor
+
+### Background and Motivation
+**Current State**: After generating an invoice, the HTML template is created via `generateEmailHTMLTemplate()` programmatically. This requires code changes to modify the invoice structure/styling.
+
+**User Request**: "Here's my workflow. The basic invoice exists in a persistent html format with the replacable elements like [Lastname}, etc. I can save this locally. we don't need to involve FB at all. Using that template, we now revert to your workflow using the basic template."
+
+**Goal**: 
+1. Use a local HTML template file with placeholders (e.g., `[Lastname]`, `[Year]`, `[Amount]`, `[PaymentLink]`)
+2. Load template, replace placeholders with actual invoice data
+3. Open in HTML editor (Quill) for final customization
+4. Copy to clipboard and open Gmail
+
+**Benefits**:
+- ✅ User can edit template HTML directly (no code changes needed)
+- ✅ Template is version-controlled (in git)
+- ✅ No Firebase storage needed
+- ✅ More flexible - full control over HTML structure/styling
+
+### Key Constraints
+- **Must work with existing workflow**: Editor should integrate with current "Copy Formatted Invoice (HTML)" flow
+- **Browser compatibility**: Must work in Chrome/Edge (primary browsers)
+- **Lightweight**: Don't want to slow down the admin dashboard
+- **No backend required**: All editing happens client-side
+- **Preserve HTML structure**: Editor should maintain the invoice's HTML structure and styling
+
+### HTML Editor Options Analysis
+
+#### Option 1: **Quill** (Recommended)
+- **License**: BSD (completely free, no restrictions)
+- **Size**: ~45KB minified
+- **Pros**:
+  - Modern, clean API
+  - Excellent WYSIWYG experience
+  - Good documentation
+  - Active development
+  - Easy CDN integration
+  - Supports HTML source editing
+- **Cons**:
+  - Slightly larger than minimal editors
+  - May need custom toolbar configuration
+- **CDN**: `https://cdn.quilljs.com/1.3.7/quill.min.js` + CSS
+
+#### Option 2: **Trix** (Alternative)
+- **License**: MIT (free, no restrictions)
+- **Size**: ~30KB minified
+- **Pros**:
+  - From Basecamp (well-maintained)
+  - Simple, focused editor
+  - Good for email HTML
+  - Lightweight
+- **Cons**:
+  - Less feature-rich than Quill
+  - May need more customization for complex HTML
+- **CDN**: `https://unpkg.com/trix@2.0.0/dist/trix.js` + CSS
+
+#### Option 3: **TinyMCE Community**
+- **License**: GPL (free for community use)
+- **Size**: ~200KB+ (larger)
+- **Pros**:
+  - Very feature-rich
+  - Excellent HTML editing
+  - Professional appearance
+- **Cons**:
+  - Larger file size (may slow page load)
+  - More complex setup
+  - May be overkill for this use case
+- **CDN**: `https://cdn.tiny.cloud/1/[api-key]/tinymce/6/tinymce.min.js`
+
+#### Option 4: **Summernote**
+- **License**: MIT (free)
+- **Size**: ~100KB+ (with Bootstrap dependency)
+- **Pros**:
+  - Bootstrap-based (if already using Bootstrap)
+  - Good feature set
+- **Cons**:
+  - Requires Bootstrap (adds dependency)
+  - Larger than needed
+- **CDN**: Requires Bootstrap + Summernote
+
+#### Option 5: **Pell**
+- **License**: MIT (free)
+- **Size**: ~5KB (extremely minimal)
+- **Pros**:
+  - Tiny file size
+  - No dependencies
+- **Cons**:
+  - Very basic features
+  - May not handle complex HTML well
+  - Less polished UI
+
+### Recommendation: **Quill**
+
+**Rationale**:
+1. **Best balance**: Good features without being bloated
+2. **Email-friendly**: Handles HTML well, which is important for Gmail pasting
+3. **Source editing**: Can toggle between WYSIWYG and HTML source view
+4. **Professional**: Clean, modern interface
+5. **Well-documented**: Easy to integrate and customize
+6. **No dependencies**: Works standalone via CDN
+
+### Integration Approach
+
+#### Workflow Design
+
+**Current Flow:**
+```
+Generate Invoice → Copy HTML → Gmail Opens → Paste
+```
+
+**New Flow with Editor:**
+```
+Generate Invoice → [Edit Invoice] → Copy HTML → Gmail Opens → Paste
+```
+
+#### UI/UX Design
+
+**Option A: Modal Editor (Recommended)**
+- Add "Edit Invoice" button next to "Copy Formatted Invoice (HTML)"
+- Clicking opens a modal with:
+  - Quill editor (WYSIWYG view)
+  - Toggle button for HTML source view
+  - "Preview" button (shows how it will look in email)
+  - "Copy & Open Gmail" button (replaces current copy button when editing)
+  - "Cancel" button (discards changes, returns to original)
+- Editor is pre-populated with generated HTML
+- Edited HTML is stored in memory (session-only, not persisted)
+- After editing, clicking "Copy & Open Gmail" uses edited version
+
+**Option B: Inline Editor**
+- Replace the invoice success panel with an inline editor
+- More compact but less flexible
+- May clutter the UI
+
+**Recommendation**: **Option A (Modal Editor)** - Keeps UI clean and provides focused editing experience.
+
+### Technical Implementation Plan
+
+#### Task 1: Add Quill Editor Library
+- **Action**: Add Quill CDN links to `billing/admin.html`
+  - CSS: `<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">`
+  - JS: `<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>`
+- **Success criteria**: Quill library loads without errors
+
+#### Task 2: Create Invoice Editor Modal
+- **Action**: Add new modal HTML to `billing/admin.html`
+  - Modal container with ID `invoiceEditorModal`
+  - Quill editor container (`<div id="invoiceEditor"></div>`)
+  - Toolbar buttons: "HTML Source", "Preview", "Copy & Open Gmail", "Cancel"
+  - Styling to match existing modals
+- **Success criteria**: Modal appears/disappears correctly, matches existing modal styling
+
+#### Task 3: Initialize Quill Editor
+- **Action**: Add JavaScript in `js/admin-dashboard.js` to:
+  - Initialize Quill editor when modal opens
+  - Configure toolbar (basic formatting: bold, italic, lists, links, etc.)
+  - Set editor content to generated HTML
+  - Handle HTML source toggle (switch between WYSIWYG and raw HTML)
+- **Success criteria**: Editor loads with invoice HTML, can edit content, toggle works
+
+#### Task 4: Integrate with Copy Workflow
+- **Action**: Modify `copyHTMLInvoiceButton` event listener to:
+  - Check if editor has been used (store edited HTML in variable)
+  - If edited, use edited HTML; otherwise use generated HTML
+  - Update "Copy Formatted Invoice (HTML)" button to open editor instead of direct copy
+  - Add new "Copy & Open Gmail" button inside editor modal
+- **Success criteria**: 
+  - Clicking "Copy Formatted Invoice (HTML)" opens editor
+  - Editing works and changes are preserved
+  - "Copy & Open Gmail" uses edited HTML
+  - Original "Copy Email Template" still works as fallback
+
+#### Task 5: HTML Source View Toggle
+- **Action**: Add toggle button to switch between:
+  - WYSIWYG view (Quill editor)
+  - HTML source view (textarea with raw HTML)
+- **Success criteria**: Can switch between views, edits in source view update WYSIWYG, and vice versa
+
+#### Task 6: Preview Functionality (Optional Enhancement)
+- **Action**: Add "Preview" button that shows:
+  - How the email will look when pasted into Gmail
+  - Rendered HTML in an iframe or styled div
+- **Success criteria**: Preview accurately shows final email appearance
+
+#### Task 7: Session Storage (Optional)
+- **Action**: Store edited HTML in `sessionStorage` so:
+  - If user accidentally closes modal, edited version is preserved
+  - Edited version persists until invoice is regenerated or page is closed
+- **Success criteria**: Edited HTML persists across modal open/close within same session
+
+### Revised Data Flow (Template-Based)
+
+```
+1. User generates invoice
+   → Invoice data prepared (customer name, year, amount, payment link, etc.)
+   → Load HTML template from `templates/invoice-template.html` (via fetch)
+   → Replace placeholders: [Lastname], [Year], [Amount], [PaymentLink], [Greeting], etc.
+   → Store populated HTML in `currentInvoiceData.htmlContent`
+
+2. User clicks "Edit Invoice (HTML)"
+   → Modal opens
+   → Quill editor initialized with populated HTML
+   → User edits content (WYSIWYG or HTML source)
+
+3. User clicks "Copy & Open Gmail"
+   → Get HTML from Quill editor
+   → Store in `currentInvoiceData.editedHtmlContent`
+   → Copy to clipboard (same as current flow)
+   → Open Gmail
+   → Close modal
+
+4. If user clicks "Edit Invoice (HTML)" again
+   → Check if `currentInvoiceData.editedHtmlContent` exists
+   → If yes, use edited version; if no, reload from template and replace placeholders
+```
+
+### Template File Structure
+
+**Location**: `templates/invoice-template.html` (or `billing/templates/invoice-template.html`)
+
+**Placeholder Format**: Use square brackets, e.g.:
+- `[Lastname]` - Customer's last name
+- `[Firstname]` - Customer's first name
+- `[Fullname]` - Customer's full name
+- `[Greeting]` - Formatted greeting (e.g., "Hi Dr. Smith,")
+- `[Year]` - Invoice year (e.g., "2026")
+- `[CardAmount]` - Card payment amount (e.g., "$555")
+- `[CheckAmount]` - Check payment amount (e.g., "$540")
+- `[CheckDiscount]` - Discount amount (e.g., "$15")
+- `[PaymentLink]` - Stripe payment link URL
+- `[PaymentLinkText]` - Payment link display text (e.g., "Pay Online via Stripe")
+- `[Address]` - Mailing address for checks
+- `[SupportPhone]` - Support phone number
+- `[FaxNumber]` - Fax number
+- `[Signature]` - Signature line (e.g., "Dr. Steve")
+
+**Example Template Structure**:
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        /* Inline styles (Gmail-compatible) */
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .greeting { font-weight: normal; margin-bottom: 20px; }
+        .amount-section { background-color: #f8f9fa; border-left: 4px solid #008080; padding: 15px; }
+        /* ... more styles ... */
+    </style>
+</head>
+<body>
+    <div class="greeting">[Greeting]</div>
+    
+    <div class="intro">
+        <p>We are doing our billing differently this year!</p>
+        <!-- ... more content ... -->
+    </div>
+    
+    <div class="amount-section">
+        <p><strong>Your annual HandyWorks maintenance fee for [Year] is coming due.</strong></p>
+    </div>
+    
+    <div class="options">
+        <p><strong>Options:</strong></p>
+        <p><strong>Pay [CardAmount] via Stripe:</strong></p>
+        <a href="[PaymentLink]" class="payment-link">[PaymentLinkText]</a>
+        <!-- ... more content ... -->
+    </div>
+    
+    <div class="signature">[Signature]</div>
+</body>
+</html>
+```
+
+### Key Challenges and Analysis
+
+#### Challenge 1: HTML Structure Preservation
+- **Issue**: WYSIWYG editors sometimes modify HTML structure (add/remove tags, change formatting)
+- **Solution**: 
+  - Use Quill's `getHTML()` method to get clean HTML
+  - Test that pasted HTML in Gmail renders correctly
+  - May need to sanitize/clean HTML before copying
+
+#### Challenge 2: Email Client Compatibility
+- **Issue**: HTML that looks good in editor may not render correctly in Gmail
+- **Solution**:
+  - Keep existing inline styles (Gmail strips `<style>` tags)
+  - Test with actual Gmail paste
+  - Provide preview functionality
+
+#### Challenge 3: Editor Size/Performance
+- **Issue**: Adding editor library may slow page load
+- **Solution**:
+  - Load Quill only when editor modal is opened (lazy load)
+  - Use CDN for fast delivery
+  - Quill is relatively lightweight (~45KB)
+
+#### Challenge 4: User Workflow Confusion
+- **Issue**: Two buttons ("Copy Formatted Invoice" vs "Edit Invoice") may be confusing
+- **Solution**:
+  - Rename "Copy Formatted Invoice (HTML)" to "Edit Invoice (HTML)"
+  - Keep "Copy Email Template" as plain text fallback
+  - Make workflow clear: Edit → Copy → Paste
+
+### Success Criteria
+
+1. ✅ User can click "Edit Invoice" button after generating invoice
+2. ✅ Modal opens with WYSIWYG editor showing invoice HTML
+3. ✅ User can edit text, formatting, links in the editor
+4. ✅ User can toggle to HTML source view and edit raw HTML
+5. ✅ User can preview how email will look
+6. ✅ User can copy edited HTML to clipboard
+7. ✅ Gmail opens with To/Subject filled
+8. ✅ Pasted HTML in Gmail renders correctly with formatting
+9. ✅ Edited HTML persists in session (until invoice regenerated)
+10. ✅ Original "Copy Email Template" (plain text) still works as fallback
+
+### Risks / Regressions to Watch
+
+- **HTML structure changes**: Editor may modify HTML in ways that break Gmail rendering
+- **Performance**: Adding editor library may slow page load (mitigate with lazy loading)
+- **User confusion**: New workflow may be unclear (mitigate with clear button labels and instructions)
+- **Browser compatibility**: Quill should work in Chrome/Edge, but test in other browsers if needed
+
+### High-level Task Breakdown (Revised - Template-Based)
+
+#### Phase 1: Template File Setup (15 minutes)
+- [ ] Create `templates/` directory (or `billing/templates/`)
+- [ ] Create `invoice-template.html` with placeholders
+- [ ] Document all available placeholders
+- [ ] Test template loads correctly (can be done manually first)
+
+#### Phase 2: Template Loading & Replacement (1 hour)
+- [ ] Create `loadInvoiceTemplate()` function in `js/admin-dashboard.js`
+- [ ] Fetch template HTML via `fetch('templates/invoice-template.html')`
+- [ ] Create `replaceTemplatePlaceholders(template, invoiceData)` function
+- [ ] Map invoice data to placeholders:
+  - `[Lastname]` → Extract from customer name
+  - `[Firstname]` → Extract from customer name
+  - `[Fullname]` → Full customer name
+  - `[Greeting]` → Generate greeting (use existing logic)
+  - `[Year]` → Invoice year
+  - `[CardAmount]` → Settings card amount
+  - `[CheckAmount]` → Settings check amount
+  - `[CheckDiscount]` → Calculated discount
+  - `[PaymentLink]` → Stripe payment link URL
+  - `[PaymentLinkText]` → "Pay Online via Stripe"
+  - `[Address]` → Mailing address (multi-line)
+  - `[SupportPhone]` → Support phone
+  - `[FaxNumber]` → Fax number
+  - `[Signature]` → "Dr. Steve"
+- [ ] Test placeholder replacement works correctly
+- [ ] Handle missing placeholders gracefully
+
+#### Phase 3: Editor Setup (30 minutes)
+- [ ] Add Quill CDN links to `billing/admin.html` (lazy load)
+- [ ] Create invoice editor modal HTML structure
+- [ ] Add basic modal styling (match existing modals)
+- [ ] Test modal open/close functionality
+
+#### Phase 4: Editor Integration (1-2 hours)
+- [ ] Initialize Quill editor in modal (lazy load when modal opens)
+- [ ] Configure toolbar (basic formatting: bold, italic, lists, links, etc.)
+- [ ] Load populated HTML (from template replacement) into editor
+- [ ] Test editing functionality
+- [ ] Add HTML source toggle button
+- [ ] Implement switch between WYSIWYG and source view
+- [ ] Sync content between views
+
+#### Phase 5: Workflow Integration (1 hour)
+- [ ] Update "Copy Formatted Invoice (HTML)" button to:
+  - Load template (if not already loaded)
+  - Replace placeholders
+  - Open editor modal with populated HTML
+- [ ] Add "Copy & Open Gmail" button in editor modal
+- [ ] Implement copy logic using edited HTML from Quill
+- [ ] Test full workflow: Generate → Load Template → Replace → Edit → Copy → Gmail
+
+#### Phase 6: Error Handling & Polish (30 minutes)
+- [ ] Handle template file not found (fallback to programmatic generation)
+- [ ] Handle fetch errors gracefully
+- [ ] Add helpful instructions/UX guidance
+- [ ] Test edge cases (missing placeholders, invalid HTML, etc.)
+- [ ] Test Gmail paste rendering
+
+#### Phase 7: Session Persistence (Optional, 15 minutes)
+- [ ] Store edited HTML in sessionStorage
+- [ ] Restore edited HTML when reopening editor
+- [ ] Clear on invoice regeneration
+
+**Total Estimated Time**: 4-5 hours
+
+### Template Placeholder Reference
+
+**Required Placeholders** (must be in template):
+- `[Greeting]` - Formatted greeting
+- `[Year]` - Invoice year
+- `[CardAmount]` - Card payment amount
+- `[CheckAmount]` - Check payment amount
+- `[PaymentLink]` - Stripe payment link URL
+- `[PaymentLinkText]` - Payment link button text
+
+**Optional Placeholders** (can be used if needed):
+- `[Lastname]` - Customer last name
+- `[Firstname]` - Customer first name
+- `[Fullname]` - Customer full name
+- `[CheckDiscount]` - Discount amount
+- `[Address]` - Mailing address (formatted)
+- `[SupportPhone]` - Support phone number
+- `[FaxNumber]` - Fax number
+- `[Signature]` - Signature line
+
+### Questions for Discussion
+
+1. **Template Location**: Where should the template file be stored?
+   - Option A: `templates/invoice-template.html` (root level)
+   - Option B: `billing/templates/invoice-template.html` (with billing files)
+   - **Recommendation**: Option B (keeps billing-related files together)
+
+2. **Template Format**: What placeholders do you want to use?
+   - I've suggested: `[Lastname]`, `[Year]`, `[Amount]`, `[PaymentLink]`, etc.
+   - Do you have a preferred format? (e.g., `{{Lastname}}`, `{Lastname}`, `[Lastname]`)
+
+3. **Editor Choice**: Do you agree with Quill, or prefer Trix/TinyMCE?
+   - **Recommendation**: Quill (best balance of features and size)
+
+4. **Workflow**: Should "Copy Formatted Invoice" open editor, or should there be a separate "Edit Invoice" button?
+   - **Recommendation**: "Copy Formatted Invoice (HTML)" opens editor, then "Copy & Open Gmail" button inside editor
+
+5. **Template Updates**: How do you want to handle template updates?
+   - Template file is in git, so you can edit it directly
+   - Changes take effect after page refresh (or we can add cache-busting)
+
+6. **Fallback**: If template file fails to load, should we:
+   - Fall back to programmatic generation (`generateEmailHTMLTemplate()`)?
+   - Show error message?
+   - **Recommendation**: Fall back to programmatic generation
+
+### Next Steps
+
+**Waiting for user confirmation** on:
+- Template file location preference
+- Placeholder format preference
+- Editor choice (Quill recommended)
+- Any specific requirements or preferences
+
+**Once confirmed, proceed to implementation as Executor.**
 
 ### Recent Changes Review (Planner Summary)
 - **Stripe Checkout Sessions**: Client (`js/admin-dashboard.js`) calls Vercel function `api/createCheckoutSession.js` which uses `price_data.unit_amount` so **custom amounts should work** and `receipt_email` is set for Stripe receipts.

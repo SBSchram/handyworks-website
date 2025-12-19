@@ -37,6 +37,7 @@
     const generateBillButton = document.getElementById('generateBillButton');
     const exportButton = document.getElementById('exportButton');
     const settingsButton = document.getElementById('settingsButton');
+    const invoiceTemplateEditorButton = document.getElementById('invoiceTemplateEditorButton');
     
     // Stats elements
     const totalUsersEl = document.getElementById('totalUsers');
@@ -82,6 +83,11 @@
     
     // Settings handler
     settingsButton.addEventListener('click', openSettingsModal);
+    
+    // Invoice Template Editor handler
+    if (invoiceTemplateEditorButton) {
+        invoiceTemplateEditorButton.addEventListener('click', openInvoiceTemplateEditor);
+    }
     
     // Load users from Firestore
     async function loadUsers() {
@@ -1085,6 +1091,278 @@
         }
     }
     
+    // Open invoice template editor (opens template file in new window)
+    function openInvoiceTemplateEditor() {
+        // Open the invoice template file in a new window/tab for direct editing
+        const templateUrl = 'templates/invoice-template.html';
+        window.open(templateUrl, '_blank');
+    }
+    
+    // Global variables for invoice editor
+    let invoiceEditorQuill = null;
+    let invoiceEditorModal = null;
+    let isHtmlSourceView = false;
+    let editedInvoiceHtml = null;
+    
+    // Load invoice template and replace placeholders
+    async function loadInvoiceTemplate(invoiceData, paymentLink) {
+        try {
+            const templateUrl = 'templates/invoice-template.html';
+            const response = await fetch(templateUrl);
+            
+            if (!response.ok) {
+                throw new Error(`Template not found: ${templateUrl}. Please create the template file.`);
+            }
+            
+            let templateHtml = await response.text();
+            
+            // Get business settings
+            const settings = getBusinessSettings();
+            const checkDiscount = settings.cardAmount - settings.checkAmount;
+            
+            // Format customer name
+            const nameParts = invoiceData.customer_name.split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts[nameParts.length - 1] || '';
+            const fullName = invoiceData.customer_name;
+            
+            // Generate greeting
+            let greeting;
+            if (settings.salutation === 'none') {
+                greeting = `Hi ${firstName},`;
+            } else {
+                greeting = `Hi ${settings.salutation} ${lastName},`;
+            }
+            
+            // Format address
+            const address = settings.address 
+                ? `${settings.address}\n${settings.city || ''}`.trim()
+                : `Chapter 1 Software Inc
+140 E 28th Street
+Suite 1F
+New York City, NY 10016`;
+            
+            // Replace placeholders
+            const replacements = {
+                '[Greeting]': greeting,
+                '[Lastname]': lastName,
+                '[Firstname]': firstName,
+                '[Fullname]': fullName,
+                '[Year]': invoiceData.year.toString(),
+                '[CardAmount]': settings.cardAmount.toString(),
+                '[CheckAmount]': settings.checkAmount.toString(),
+                '[CheckDiscount]': checkDiscount.toString(),
+                '[PaymentLink]': paymentLink.url,
+                '[PaymentLinkText]': 'Pay Online via Stripe',
+                '[Address]': address,
+                '[SupportPhone]': settings.phone || '212-889-8878',
+                '[FaxNumber]': settings.fax || '',
+                '[Signature]': 'Dr. Steve'
+            };
+            
+            // Replace all placeholders
+            for (const [placeholder, value] of Object.entries(replacements)) {
+                templateHtml = templateHtml.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+            }
+            
+            return templateHtml;
+        } catch (error) {
+            console.error('Error loading template:', error);
+            // Fallback to programmatic generation
+            return generateEmailHTMLTemplate(invoiceData, paymentLink);
+        }
+    }
+    
+    // Open invoice editor modal
+    async function openInvoiceEditorModal(invoiceData, paymentLink, emailData) {
+        // Get modal elements
+        invoiceEditorModal = document.getElementById('invoiceEditorModal');
+        if (!invoiceEditorModal) {
+            alert('Invoice editor modal not found. Please refresh the page.');
+            return;
+        }
+        
+        // Show modal
+        invoiceEditorModal.style.display = 'flex';
+        
+        // Load template and replace placeholders
+        try {
+            const htmlContent = await loadInvoiceTemplate(invoiceData, paymentLink);
+            
+            // Initialize Quill editor if not already initialized
+            if (!invoiceEditorQuill) {
+                const editorContainer = document.getElementById('invoiceEditor');
+                if (!editorContainer) {
+                    alert('Editor container not found.');
+                    return;
+                }
+                
+                invoiceEditorQuill = new Quill('#invoiceEditor', {
+                    theme: 'snow',
+                    modules: {
+                        toolbar: [
+                            [{ 'header': [1, 2, 3, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'color': [] }, { 'background': [] }],
+                            ['link'],
+                            ['clean']
+                        ]
+                    }
+                });
+            }
+            
+            // Set content
+            invoiceEditorQuill.root.innerHTML = htmlContent;
+            isHtmlSourceView = false;
+            editedInvoiceHtml = null;
+            
+            // Update HTML source textarea
+            const htmlSourceTextarea = document.getElementById('invoiceEditorHtmlSource');
+            if (htmlSourceTextarea) {
+                htmlSourceTextarea.value = htmlContent;
+            }
+            
+            // Show editor, hide source
+            document.getElementById('invoiceEditor').style.display = 'block';
+            if (htmlSourceTextarea) {
+                htmlSourceTextarea.style.display = 'none';
+            }
+            
+            // Store current data for copy operation
+            window.currentEditorInvoiceData = invoiceData;
+            window.currentEditorPaymentLink = paymentLink;
+            window.currentEditorEmailData = emailData;
+            
+        } catch (error) {
+            console.error('Error opening editor:', error);
+            alert('Error loading invoice template: ' + error.message);
+            closeInvoiceEditorModal();
+        }
+    }
+    
+    // Close invoice editor modal
+    function closeInvoiceEditorModal() {
+        if (invoiceEditorModal) {
+            invoiceEditorModal.style.display = 'none';
+        }
+        isHtmlSourceView = false;
+    }
+    
+    // Toggle HTML source view
+    function toggleHtmlSourceView() {
+        if (!invoiceEditorQuill) return;
+        
+        const editorContainer = document.getElementById('invoiceEditor');
+        const htmlSourceTextarea = document.getElementById('invoiceEditorHtmlSource');
+        const toggleButton = document.getElementById('toggleHtmlSourceButton');
+        
+        if (!editorContainer || !htmlSourceTextarea || !toggleButton) return;
+        
+        isHtmlSourceView = !isHtmlSourceView;
+        
+        if (isHtmlSourceView) {
+            // Switch to HTML source view
+            htmlSourceTextarea.value = invoiceEditorQuill.root.innerHTML;
+            editorContainer.style.display = 'none';
+            htmlSourceTextarea.style.display = 'block';
+            toggleButton.textContent = 'View WYSIWYG Editor';
+        } else {
+            // Switch to WYSIWYG view
+            invoiceEditorQuill.root.innerHTML = htmlSourceTextarea.value;
+            editorContainer.style.display = 'block';
+            htmlSourceTextarea.style.display = 'none';
+            toggleButton.textContent = 'View HTML Source';
+        }
+    }
+    
+    // Copy edited invoice and open Gmail
+    async function copyEditedInvoiceAndOpenGmail() {
+        if (!invoiceEditorQuill) {
+            alert('Editor not initialized.');
+            return;
+        }
+        
+        const editorContainer = document.getElementById('invoiceEditor');
+        const htmlSourceTextarea = document.getElementById('invoiceEditorHtmlSource');
+        
+        // Get HTML content (from source view if active, otherwise from editor)
+        let htmlContent;
+        if (isHtmlSourceView && htmlSourceTextarea) {
+            htmlContent = htmlSourceTextarea.value;
+        } else {
+            htmlContent = invoiceEditorQuill.root.innerHTML;
+        }
+        
+        // Store edited HTML
+        editedInvoiceHtml = htmlContent;
+        
+        // Get email data
+        const emailData = window.currentEditorEmailData;
+        if (!emailData) {
+            alert('Email data not available.');
+            return;
+        }
+        
+        // Generate plain text fallback
+        const invoiceData = window.currentEditorInvoiceData;
+        const paymentLink = window.currentEditorPaymentLink;
+        const plainTextContent = generateEmailTemplate(invoiceData, paymentLink);
+        const plainTextBody = plainTextContent.split('\n').slice(2).join('\n');
+        
+        try {
+            // Copy to clipboard with both HTML and plain text formats
+            const clipboardItem = new ClipboardItem({
+                'text/html': new Blob([htmlContent], { type: 'text/html' }),
+                'text/plain': new Blob([plainTextBody], { type: 'text/plain' })
+            });
+            
+            await navigator.clipboard.write([clipboardItem]);
+            
+            // Open Gmail
+            const gmailUrl = buildGmailComposeUrl(
+                emailData.to,
+                emailData.subject,
+                null,
+                false // Don't include body - user will paste HTML
+            );
+            
+            window.open(gmailUrl, '_blank');
+            
+            // Show success message
+            const successMsg = document.getElementById('editorSuccessMessage');
+            if (successMsg) {
+                successMsg.textContent = '✅ Formatted invoice copied to clipboard! Gmail opened. Paste (Ctrl+V / Cmd+V) into the email body.';
+                successMsg.style.display = 'block';
+            }
+            
+            // Close modal after a short delay
+            setTimeout(() => {
+                closeInvoiceEditorModal();
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error copying invoice:', error);
+            
+            // Fallback to plain text
+            try {
+                await navigator.clipboard.writeText(plainTextBody);
+                alert('HTML copy failed, but plain text was copied. Please paste into Gmail.');
+                
+                const gmailUrl = buildGmailComposeUrl(
+                    emailData.to,
+                    emailData.subject,
+                    null,
+                    false
+                );
+                window.open(gmailUrl, '_blank');
+            } catch (fallbackError) {
+                console.error('Fallback copy also failed:', fallbackError);
+                alert('Failed to copy to clipboard. Your browser may not support this feature.');
+            }
+        }
+    }
+    
     // Load settings from localStorage
     function loadSettings() {
         const settings = getBusinessSettings();
@@ -1306,7 +1584,7 @@
             window.open(gmailUrl, '_blank');
         });
         
-        // Copy HTML Invoice button (formatted with rich text)
+        // Copy HTML Invoice button - now opens editor instead of direct copy
         if (copyHTMLInvoiceButton) {
             copyHTMLInvoiceButton.addEventListener('click', async () => {
             if (!currentEmailData || !currentUser) {
@@ -1321,95 +1599,21 @@
                 return;
             }
             
-            try {
-                // Use stored invoice data if available, otherwise rebuild from current data
-                let invoiceData = currentInvoiceData;
-                if (!invoiceData) {
-                    invoiceData = {
-                        customer_name: formatCustomerName(currentUser) !== 'N/A' ? formatCustomerName(currentUser) : (currentUser.email || 'Customer'),
-                        customer_email: currentUser.email || '',
-                        year: getInvoiceYear(currentEmailData?.subject),
-                        acct_num: currentUser.acct_num
-                    };
-                }
-                
-                const paymentLink = { url: paymentUrl };
-                
-                // Generate HTML template
-                const htmlContent = generateEmailHTMLTemplate(invoiceData, paymentLink);
-                
-                // Also generate plain text version for fallback
-                const plainTextContent = generateEmailTemplate(invoiceData, paymentLink);
-                const plainTextBody = plainTextContent.split('\n').slice(2).join('\n'); // Remove subject line
-                
-                // Copy to clipboard with both HTML and plain text formats
-                const clipboardItem = new ClipboardItem({
-                    'text/html': new Blob([htmlContent], { type: 'text/html' }),
-                    'text/plain': new Blob([plainTextBody], { type: 'text/plain' })
-                });
-                
-                await navigator.clipboard.write([clipboardItem]);
-                
-                // Show success message
-                const originalText = copyHTMLInvoiceButton.textContent;
-                copyHTMLInvoiceButton.textContent = '✓ Copied! Opening Gmail...';
-                copyHTMLInvoiceButton.style.background = '#28a745';
-                
-                // Open Gmail with only to/subject (no body, so user can paste HTML)
-                const gmailUrl = buildGmailComposeUrl(
-                    currentEmailData.to,
-                    currentEmailData.subject,
-                    null,
-                    false // Don't include body - user will paste HTML
-                );
-                
-                // Open Gmail in new window
-                window.open(gmailUrl, '_blank');
-                
-                // Show helpful message
-                setTimeout(() => {
-                    showModalSuccess('✅ Formatted invoice copied to clipboard! Gmail opened. Paste (Ctrl+V / Cmd+V) into the email body to insert the formatted invoice.');
-                }, 500);
-                
-                // Reset button after 3 seconds
-                setTimeout(() => {
-                    copyHTMLInvoiceButton.textContent = originalText;
-                    copyHTMLInvoiceButton.style.background = '';
-                }, 3000);
-                
-            } catch (error) {
-                console.error('Error copying HTML invoice:', error);
-                
-                // Fallback: try plain text copy
-                try {
-                    let invoiceData = currentInvoiceData;
-                    if (!invoiceData) {
-                        invoiceData = {
-                            customer_name: formatCustomerName(currentUser) !== 'N/A' ? formatCustomerName(currentUser) : (currentUser.email || 'Customer'),
-                            customer_email: currentUser.email || '',
-                            year: getInvoiceYear(currentEmailData?.subject),
-                            acct_num: currentUser.acct_num
-                        };
-                    }
-                    
-                    const plainTextContent = generateEmailTemplate(invoiceData, { url: paymentUrl });
-                    const plainTextBody = plainTextContent.split('\n').slice(2).join('\n');
-                    
-                    await navigator.clipboard.writeText(plainTextBody);
-                    alert('HTML copy failed, but plain text was copied. Please paste into Gmail.');
-                    
-                    const gmailUrl = buildGmailComposeUrl(
-                        currentEmailData.to,
-                        currentEmailData.subject,
-                        null,
-                        false
-                    );
-                    window.open(gmailUrl, '_blank');
-                } catch (fallbackError) {
-                    console.error('Fallback copy also failed:', fallbackError);
-                    alert('Failed to copy to clipboard. Your browser may not support this feature. Please use "Copy Email Template" instead.');
-                }
+            // Use stored invoice data if available, otherwise rebuild from current data
+            let invoiceData = currentInvoiceData;
+            if (!invoiceData) {
+                invoiceData = {
+                    customer_name: formatCustomerName(currentUser) !== 'N/A' ? formatCustomerName(currentUser) : (currentUser.email || 'Customer'),
+                    customer_email: currentUser.email || '',
+                    year: getInvoiceYear(currentEmailData?.subject),
+                    acct_num: currentUser.acct_num
+                };
             }
+            
+            const paymentLink = { url: paymentUrl };
+            
+            // Open editor modal with template
+            await openInvoiceEditorModal(invoiceData, paymentLink, currentEmailData);
         });
         }
         
@@ -1457,6 +1661,52 @@
         
         modalInitialized = true;
         console.log('Invoice modal initialized successfully');
+    }
+    
+    // Initialize invoice editor modal event listeners
+    function initializeInvoiceEditorModal() {
+        // Get modal elements
+        invoiceEditorModal = document.getElementById('invoiceEditorModal');
+        const editorModalClose = document.getElementById('invoiceEditorModalClose');
+        const editorCancelButton = document.getElementById('invoiceEditorCancelButton');
+        const toggleHtmlSourceButton = document.getElementById('toggleHtmlSourceButton');
+        const copyAndOpenGmailButton = document.getElementById('copyAndOpenGmailButton');
+        
+        // Close button
+        if (editorModalClose) {
+            editorModalClose.addEventListener('click', closeInvoiceEditorModal);
+        }
+        
+        // Cancel button
+        if (editorCancelButton) {
+            editorCancelButton.addEventListener('click', closeInvoiceEditorModal);
+        }
+        
+        // Toggle HTML source button
+        if (toggleHtmlSourceButton) {
+            toggleHtmlSourceButton.addEventListener('click', toggleHtmlSourceView);
+        }
+        
+        // Copy & Open Gmail button
+        if (copyAndOpenGmailButton) {
+            copyAndOpenGmailButton.addEventListener('click', copyEditedInvoiceAndOpenGmail);
+        }
+        
+        // Close modal when clicking outside
+        if (invoiceEditorModal) {
+            invoiceEditorModal.addEventListener('click', (e) => {
+                if (e.target === invoiceEditorModal) {
+                    closeInvoiceEditorModal();
+                }
+            });
+        }
+    }
+    
+    // Initialize editor modal when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeInvoiceEditorModal);
+    } else {
+        initializeInvoiceEditorModal();
     }
     
     // Open modal with user data
