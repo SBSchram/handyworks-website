@@ -294,30 +294,36 @@
                 // Update HTML source first
                 document.getElementById('htmlSource').value = html;
                 
-                // Set content in editor using Quill's API
-                // Clear first, then set content
-                quill.setText('');
-                
-                // Try multiple methods to set content
-                try {
-                    quill.clipboard.dangerouslyPasteHTML(bodyContent);
-                } catch (e) {
-                    console.log('dangerouslyPasteHTML failed, trying innerHTML:', e);
-                    quill.root.innerHTML = bodyContent;
-                }
-                
-                // Force update
-                quill.update();
-                
-                console.log('Content set in editor. Editor HTML length:', quill.root.innerHTML.length);
-                
-                // Update status
-                if (statusEl) {
-                    statusEl.textContent = 'Template loaded. You can now edit the content above.';
-                    statusEl.style.color = '#28a745';
-                }
-                
-                showMessage('Template loaded successfully! You can now edit the content below.', 'success');
+                // Set content in editor - use a delayed approach to avoid Quill update errors
+                // Wait for Quill to be fully ready, then set content directly
+                setTimeout(() => {
+                    try {
+                        // Clear first
+                        quill.root.innerHTML = '';
+                        
+                        // Set content directly - avoids Quill's clipboard/update mechanism that causes errors
+                        quill.root.innerHTML = bodyContent;
+                        
+                        console.log('Content set in editor. Editor HTML length:', quill.root.innerHTML.length);
+                        
+                        // Update status
+                        const statusEl = document.getElementById('editorStatus');
+                        if (statusEl) {
+                            statusEl.textContent = 'Template loaded. You can now edit the content above.';
+                            statusEl.style.color = '#28a745';
+                        }
+                        
+                        showMessage('Template loaded successfully! You can now edit the content below.', 'success');
+                    } catch (e) {
+                        console.error('Error setting content:', e);
+                        const statusEl = document.getElementById('editorStatus');
+                        if (statusEl) {
+                            statusEl.textContent = 'Error setting content: ' + e.message;
+                            statusEl.style.color = '#dc3545';
+                        }
+                        showMessage('Error setting content: ' + e.message, 'error');
+                    }
+                }, 200);
             } catch (error) {
                 console.error('Error loading template:', error);
                 const statusEl = document.getElementById('editorStatus');
