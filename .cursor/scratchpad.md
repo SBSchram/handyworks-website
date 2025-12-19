@@ -30,6 +30,60 @@
 
 ---
 
+## ✅ PLANNER (2025-12-18): Gmail Invoice Formatting via HTML Clipboard + Paste
+
+### Background and Motivation
+The current “Send via Gmail” approach uses a Gmail compose URL with a **plain-text** body. Gmail URLs do not reliably support rich formatting, so invoices look messy.
+
+Goal: generate a **formatted HTML invoice**, copy it to clipboard as rich text, open Gmail compose (To/Subject filled), then you paste the invoice into Gmail with correct formatting.
+
+### Key Constraints
+- **We cannot auto-paste into Gmail** (browser security). You must paste manually.
+- **Clipboard HTML isn’t supported everywhere**. We need a fallback to plain text copy.
+
+### High-level Task Breakdown (Plan)
+#### Task A: Build HTML invoice generator
+Add a function alongside `generateEmailTemplate` that produces:
+- `subject` (string)
+- `html` (string) – formatted invoice HTML
+- `text` (string) – plain text fallback
+
+**Success criteria:**
+- Uses the same invoice data you already generate (customer, year, amount, payment link, address/support/fax text).
+- Escapes user-provided fields to avoid accidental HTML injection.
+
+#### Task B: Copy “rich text” to clipboard (with fallback)
+Add `copyInvoiceToClipboard({ html, text })` using:
+- `navigator.clipboard.write([new ClipboardItem({ 'text/html': ..., 'text/plain': ... })])`
+- fallback to `navigator.clipboard.writeText(text)` when rich copy fails.
+
+**Success criteria:**
+- On Chrome/Edge desktop: paste into Gmail renders formatted invoice.
+- If rich copy fails: plain text still copies successfully.
+
+#### Task C: Open Gmail compose cleanly for paste
+For the formatted flow, open Gmail compose with **To + Subject only** (empty body) so you paste into a blank message body.
+
+**Success criteria:**
+- After clicking the new button: clipboard is ready, Gmail opens, paste works.
+- Existing “Send via Gmail” and “Copy Email Template” remain unchanged as fallback.
+
+#### Task D: Small UX guidance
+After copy succeeds, show: “Copied. Gmail opened—click in the body and paste (Ctrl+V).”
+
+### Review Notes (current code reality)
+- Current code already has `buildGmailComposeUrl()` + `sendViaGmailButton` in `js/admin-dashboard.js`.
+- Current email template is plain text (`generateEmailTemplate`), which is why formatting is limited.
+
+### Recent Changes Review (Planner Summary)
+- **Stripe Checkout Sessions**: Client (`js/admin-dashboard.js`) calls Vercel function `api/createCheckoutSession.js` which uses `price_data.unit_amount` so **custom amounts should work** and `receipt_email` is set for Stripe receipts.
+- **Webhooks → Firestore sync**: `api/stripeWebhook.js` creates a payment record in `handyworks_payments` on `checkout.session.completed`, then recalculates totals and marks invoice paid when fully covered.
+- **Dashboard UX**: `billing/admin.html` + `js/admin-dashboard.js` support invoice rows + payment rows, manual payment recording modal, and “Mark as Paid” on the invoice modal result panel.
+
+### Risks / Regressions to Watch
+- **“Mark as Paid” vs payments ledger mismatch**: invoice modal “Mark as Paid” updates `handyworks_invoices` but does **not** create a `handyworks_payments` record; totals in the table are derived from payments, so this can look inconsistent. (We should converge on one source of truth.)
+- **Git tooling in this shell**: current PowerShell environment reports `git` not found; repo review needs to be done via file inspection unless PATH is fixed.
+
 ## ✅ PHASE 1 COMPLETE: Stripe Invoice Generation with Payment Links
 
 **Date**: 2025-12-12  
