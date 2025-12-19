@@ -1217,16 +1217,16 @@ New York City, NY 10016`;
         try {
             const templateData = await loadInvoiceTemplate(invoiceData, paymentLink);
             
-            // Handle both old format (string) and new format (object)
+            // Extract body and head from template data
             let bodyContent, fullHtml;
             if (typeof templateData === 'string') {
-                // Legacy format - extract body content
+                // String format - extract body content
                 const bodyMatch = templateData.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
                 bodyContent = bodyMatch ? bodyMatch[1] : templateData;
                 fullHtml = templateData;
                 invoiceTemplateHead = templateData.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[0] || '';
             } else {
-                // New format - use body content for editing
+                // Object format - use body content for editing
                 bodyContent = templateData.body;
                 fullHtml = templateData.full;
                 invoiceTemplateHead = templateData.head;
@@ -2054,8 +2054,7 @@ ${bodyContent}
             };
         }
         
-        // Fallback: Direct API call (for test mode only - exposes secret key)
-        // TODO: Remove this once Cloud Function is deployed and working
+        // Fallback: Direct API call (only used if Cloud Function fails)
         const body = new URLSearchParams({
             'mode': 'payment',
             'line_items[0][price]': stripeConfig.priceId,
