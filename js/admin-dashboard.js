@@ -1177,7 +1177,12 @@ New York City, NY 10016`;
                 '[Address]': address,
                 '[SupportPhone]': settings.phone || '212-889-8878',
                 '[FaxNumber]': settings.fax || '',
-                '[Signature]': 'Dr. Steve'
+                '[Signature]': 'Dr. Steve',
+                '[BusinessName]': 'HandyWorks Software',
+                '[StreetAddress]': '140 E 28th Street Suite 1F',
+                '[CityStateZip]': 'New York City, NY 10016',
+                '[PhoneNumber]': '212-889-8878',
+                '[SupportEmail]': settings.supportEmail || ''
             };
             
             // Replace all placeholders
