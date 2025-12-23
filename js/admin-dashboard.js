@@ -2295,6 +2295,7 @@ Dr. Steve`;
             margin: 10px 0;
             font-family: monospace;
             white-space: pre-line;
+            line-height: 1.2;
         }
         .terms {
             margin-top: 20px;
