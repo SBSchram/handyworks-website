@@ -1,0 +1,138 @@
+================================================================================
+EXTRACTING NON-COMPLIANCE FINDINGS FOR NUHS
+================================================================================
+
+Reading Excel file...
+Found 6 non-compliant standards:
+  - 1.03: Program Goals
+  - 5.02: Admissions
+  - 5.03: Transfer Credits/Transfer Students
+  - 8.04: Conditions of Service
+  - 9.08: Campus & Program Facilities
+  - 10.01: Accuracy, Honesty, & Clarity of Info.
+
+Extracting findings from PDF...
+================================================================================
+
+================================================================================
+STANDARD 1.03: Program Goals
+================================================================================
+
+Rating: Compliance with F urther Development
+
+Team Findings:
+The site visit team r ecommends that the pr ogram be found in Compliance with F urther
+Development for this criterion. 
+ 
+The Mission is r eviewed annually by the Boar d of T rustees which was veriﬁed thr ough a r eview
+of Boar d minutes.  A dditionally, the Mission is r eviewed annually by e xecutive leadership as
+well as the F aculty Senate.  The team r eviewed meeting minutes verif ying a r eview of the
+Mission for the last thr ee years. 
+ 
+The rationale for the F urther Development is that the educational purpose statement which
+appears in the University Bulletin is not separate and distinct fr om the MA c.  The beginning of
+this statement r eads "The educational purpose of the National University of Health Sciences
+(NUHS) Master and Doctor of A cupunctur e Programs (MS Ac/MA c/DAc) is to pr ovide acupunctur e
+in an Easter n and W ester n medicine integrative for mat.
+... [truncated]
+
+Commission Findings:
+(none)
+No supporting documents.
+Suggested Documentation
+(none)
+No supporting documents.
+Institution Response
+No comments
+No supporting documents.
+
+Note: No supporting documents mentioned
+
+================================================================================
+STANDARD 5.02: Admissions
+================================================================================
+
+================================================================================
+STANDARD 5.03: Transfer Credits/Transfer Students
+================================================================================
+
+Rating: Compliance
+
+Team Findings:
+The site visit team r ecommends ﬁnding the institution compliant for this criterion.
+ 
+The pr ogram and the institution appear to uphold honest, ethical and legal r ecruiting practices
+appropriate for graduate level pr ofessional education. The admissions policies, pr ocedur es and
+practices ar e clearly outlined in the NUHS 2024-25 Bulletin and the website. A dmissions
+standar ds and best practices ar e housed in the A dmissions T raining Manual and ar e reinfor ced
+during bi-monthly departmental staﬀ meetings and fr equent one - on-one meetings with the VP
+of admissions and the assistant dir ector .
+ 
+The site team was able to verif y these ﬁnding by r eview of the SSR, students r ecords, the
+bulletin, and during interviews.
+
+Commission Findings:
+(none)
+No supporting documents.
+Suggested Documentation
+(none)
+No supporting documents.
+Institution Response
+No comments
+No supporting documents.
+
+Note: No supporting documents mentioned
+
+================================================================================
+STANDARD 8.04: Conditions of Service
+================================================================================
+
+Rating: Compliance
+
+Team Findings:
+The site visit team r ecommends ﬁnding the pr ogram in compliance for this criterion.
+ 
+According to the self -study, the clinical education model within the D Ac program institutes a
+795-hour sequential training structur e, beginning with a 180-hour observation phase in the
+second trimester . A critical compliance point r equir es that 60 of these observation hours be
+conducted under the dir ect supervision of licensed, e xperienced practitioners, with student
+advancement pr edicated upon sequential for mative and summative clinical evaluations.
+ 
+Moving into the active phase, students must complete a minimum of 250 supervised, student-
+deliver ed treatments, including r equisite primary inter n experience (130 visits) and speciﬁed
+minimums acr oss diverse accessory techniques: e-stim, T ui-na, mo xibustion, cupping, and
+blood-letting. Inter ns ar e task ed with compr ehensive pr otocol design, guided by supervising
+clinicians who oversee tr eatment plans.
+... [truncated]
+
+Commission Findings:
+(none)
+No supporting documents.
+Suggested Documentation
+(none)
+No supporting documents.
+Institution Response
+No comments
+No supporting documents.
+
+Note: No supporting documents mentioned
+
+================================================================================
+STANDARD 9.08: Campus & Program Facilities
+================================================================================
+
+Commission Findings:
+(none)
+No supporting documents.
+Suggested Documentation
+(none)
+No supporting documents.
+Institution Response
+No comments
+No supporting documents.
+
+Note: No supporting documents mentioned
+
+================================================================================
+STANDARD 10.01: Accuracy, Honesty, & Clarity of Info.
+================================================================================

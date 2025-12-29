@@ -1,0 +1,41 @@
+Current DMARC Record for handyworks.com:
+==========================================
+
+v=DMARC1; p=quarantine; rua=mailto:steve@handyworks.com; pct=100; adkim=r; aspf=r
+
+BREAKDOWN:
+----------
+v=DMARC1          DMARC version 1 (required)
+p=quarantine      Policy: Send failing emails to spam/junk folder
+rua=mailto:steve@handyworks.com    Aggregate reports email address
+pct=100           Apply policy to 100% of emails
+adkim=r           DKIM alignment: relaxed
+aspf=r            SPF alignment: relaxed
+
+CURRENT STATUS:
+---------------
+✓ Policy: quarantine (moderate security - sends failures to spam)
+✓ Reports: Going to steve@handyworks.com
+✓ Coverage: 100% of emails
+✓ Alignment: Relaxed (more flexible matching)
+
+This matches your DMARC reports - everything is working correctly!
+
+OPTIONS TO CHANGE:
+------------------
+1. Change policy:
+   - p=none       (monitor only, no action)
+   - p=quarantine (current - send to spam)
+   - p=reject     (block failing emails completely)
+
+2. Change report email:
+   - Use dedicated email like dmarc-reports@handyworks.com
+   - Add ruf= for forensic reports (detailed failure reports)
+
+3. Add subdomain policy:
+   - sp=quarantine (policy for subdomains)
+
+4. Adjust percentage:
+   - pct=25 (start with 25% if testing)
+   - pct=100 (current - all emails)
+
