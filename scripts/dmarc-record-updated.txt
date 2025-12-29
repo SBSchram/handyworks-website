@@ -1,0 +1,31 @@
+UPDATED DMARC Record (without reports):
+========================================
+
+Current (with reports):
+v=DMARC1; p=quarantine; rua=mailto:steve@handyworks.com; pct=100; adkim=r; aspf=r
+
+NEW (without reports):
+v=DMARC1; p=quarantine; pct=100; adkim=r; aspf=r
+
+CHANGES:
+--------
+- Removed: rua=mailto:steve@handyworks.com
+- Kept: All security settings (quarantine policy, 100% coverage, relaxed alignment)
+
+HOW TO UPDATE IN NAMECHEAP:
+===========================
+1. Log in to Namecheap
+2. Go to Domain List → Manage handyworks.com
+3. Click "Advanced DNS" tab
+4. Find the existing _dmarc TXT record
+5. Edit the "Value" field
+6. Replace with: v=DMARC1; p=quarantine; pct=100; adkim=r; aspf=r
+7. Click Save/Update
+8. Wait 24-48 hours for DNS propagation (usually faster)
+
+NOTE:
+-----
+- DMARC policy still active (quarantine protection remains)
+- You just won't receive email reports anymore
+- If you want reports again later, add: rua=mailto:steve@handyworks.com
+
