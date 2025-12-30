@@ -1162,6 +1162,12 @@
 Suite 1F
 New York City, NY 10016`;
             
+            // Validate payment link URL
+            if (!paymentLink || !paymentLink.url || typeof paymentLink.url !== 'string' || !paymentLink.url.startsWith('http')) {
+                console.error('Invalid payment link URL:', paymentLink);
+                throw new Error('Payment link URL is missing or invalid. Please ensure Stripe payment link was created successfully.');
+            }
+            
             // Replace placeholders
             const replacements = {
                 '[Greeting]': greeting,
@@ -1973,6 +1979,15 @@ ${bodyContent}
                     });
                     
                     console.log(`Old invoice ${existingInvoice.invoice_id} marked as cancelled`);
+                    
+                    // Store existing payment link to reuse if available
+                    if (existingInvoice.stripe_payment_link_url && existingInvoice.stripe_payment_link_url.startsWith('http')) {
+                        window.existingPaymentLink = {
+                            id: existingInvoice.stripe_payment_link_id || 'existing',
+                            url: existingInvoice.stripe_payment_link_url
+                        };
+                        console.log('Will reuse existing payment link:', window.existingPaymentLink.url);
+                    }
                 }
                 // If user clicked OK, continue to create new invoice
             }
@@ -1987,9 +2002,17 @@ ${bodyContent}
         hideModalMessages();
         
         try {
-            // Step 1: Create Stripe Payment Link
-            showModalSuccess('Creating Stripe payment link...');
-            const paymentLink = await createStripePaymentLink(invoiceData);
+            // Step 1: Create Stripe Payment Link (or reuse existing if available)
+            let paymentLink;
+            if (window.existingPaymentLink && window.existingPaymentLink.url) {
+                showModalSuccess('Reusing existing Stripe payment link...');
+                paymentLink = window.existingPaymentLink;
+                // Clear it so it doesn't affect future invoices
+                delete window.existingPaymentLink;
+            } else {
+                showModalSuccess('Creating Stripe payment link...');
+                paymentLink = await createStripePaymentLink(invoiceData);
+            }
             
             // Step 2: Save invoice to Firestore
             showModalSuccess('Saving invoice to database...');
