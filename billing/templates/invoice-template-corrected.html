@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .greeting {
+            font-weight: normal;
+            margin-bottom: 20px;
+        }
+        .intro {
+            margin-bottom: 20px;
+        }
+        .amount-section {
+            background-color: #f8f9fa;
+            border-left: 4px solid #008080;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .options {
+            margin: 20px 0;
+        }
+        .payment-option {
+            margin: 15px 0;
+            padding: 10px;
+        }
+        .payment-link {
+            display: inline-block;
+            background-color: #008080;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .payment-link:hover {
+            background-color: #006666;
+        }
+        .check-address {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-line;
+            line-height: 1.2;
+        }
+        .terms {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 0.95em;
+            color: #666;
+        }
+        .closing {
+            margin-top: 30px;
+        }
+        .signature {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="greeting">[Greeting]</div>
+    
+    <div class="intro">
+        <p>We are doing our billing differently this year!</p>
+        
+        <p>Rather than print and mail your invoice like we've done in the past, we're sending this email with a payment link included.</p>
+        
+        <p>No worries - you can still do it the old way and call us at [SupportPhone] with your credit card info -or- send via a fax to [FaxNumber]. But we thought this method would be easier. And rather than wait till January to mail the invoice, we're doing it just before the end of the year.</p>
+    </div>
+    
+    <div class="amount-section">
+        <p><strong>INVOICE: Your annual HandyWorks maintenance fee $[CardAmount] for [Year] is due January 1. The fee remains unchanged from last year</strong></p>
+    </div>
+    
+    <div class="options">
+        <p><strong>Options:</strong></p>
+        
+        <div class="payment-option">
+            <p><a href="[PaymentLink]" class="payment-link">Click here to pay $[CardAmount] securely via credit card through Stripe</a></p>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>to save $[CheckDiscount], pay $[CheckAmount] by check and mail it to:</strong></p>
+            <div class="check-address">[Address]</div>
+        </div>
+    </div>
+    
+    <div class="terms">
+        <p>As in the past, we charge maintenance once per calendar year and this invoice covers HandyWork support charges for [Year]. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.</p>
+    </div>
+    
+    <div class="closing">
+        <p>Thank you for your continued business! We appreciate your support and look forward to serving you in [Year].</p>
+        
+        <p>If you have any questions about this invoice, please don't hesitate to contact us.</p>
+    </div>
+    
+    <div class="signature">
+        <p>Best regards,</p>
+        <p>[Signature]</p>
+    </div>
+</body>
+</html>
