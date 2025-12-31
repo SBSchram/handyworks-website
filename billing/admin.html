@@ -884,6 +884,13 @@
                         </div>
                         
                         <div class="form-group">
+                            <label>Discount Amount (Optional)</label>
+                            <input type="number" id="paymentDiscount" step="0.01" min="0" value="0" 
+                                   placeholder="0.00">
+                            <small style="color: #666; font-size: 0.85rem;">Discount applied to this payment (auto-filled for check payments)</small>
+                        </div>
+                        
+                        <div class="form-group">
                             <label>Payment Reference (Optional)</label>
                             <input type="text" id="paymentReference" placeholder="Check #, Auth Code, Transaction ID, etc.">
                             <small style="color: #666; font-size: 0.85rem;">Check number, authorization code, or other reference</small>

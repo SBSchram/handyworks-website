@@ -152,17 +152,18 @@
             allUsers.forEach(user => {
                 const userInvoices = invoicesByAcctNum[user.acct_num] || [];
                 
-                // Process each invoice: calculate paid amount and owed amount
+                // Process each invoice: calculate paid amount, discounts, and owed amount
                 user.invoices = userInvoices.map(invoice => {
                     const payments = paymentsByInvoiceId[invoice.invoice_id] || [];
                     const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-                    const amountOwed = (invoice.amount || 0) - totalPaid;
+                    const totalDiscounts = payments.reduce((sum, p) => sum + (p.discount_amount || 0), 0);
+                    const amountOwed = (invoice.amount || 0) - totalPaid - totalDiscounts;
                     
                     // Determine current payment status
                     let paymentStatus = invoice.payment_status || 'pending';
                     
-                    // Auto-update status based on payments
-                    if (totalPaid >= invoice.amount) {
+                    // Auto-update status based on payments (accounting for discounts)
+                    if (totalPaid + totalDiscounts >= invoice.amount) {
                         paymentStatus = 'paid';
                     } else if (paymentStatus !== 'cancelled' && invoice.due_date) {
                         const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
@@ -175,6 +176,7 @@
                         ...invoice,
                         payments: payments,
                         totalPaid: totalPaid,
+                        totalDiscounts: totalDiscounts,
                         amountOwed: amountOwed,
                         paymentStatus: paymentStatus
                     };
@@ -405,9 +407,11 @@
                             const method = payment.payment_method || 'Unknown';
                             const reference = payment.payment_reference ? ` #${payment.payment_reference}` : '';
                             const paymentAmount = payment.amount || 0;
+                            const discountAmount = payment.discount_amount || 0;
+                            const discountText = discountAmount > 0 ? ` <span style="color: #28a745; font-size: 0.85rem;">(disc: $${formatCurrency(discountAmount)})</span>` : '';
                             
-                            // Update running balance
-                            runningBalance -= paymentAmount;
+                            // Update running balance (accounting for discount)
+                            runningBalance -= (paymentAmount + discountAmount);
                             const balanceColor = runningBalance > 0 ? '#dc3545' : '#28a745';
                             
                             const deletePaymentButton = `
@@ -420,7 +424,7 @@
                                 <td style="padding: 0.5rem;"></td>
                                 <td style="padding: 0.5rem;"></td>
                                 <td style="padding: 0.5rem 0.5rem 0.5rem 2rem; color: #666; font-size: 0.9rem;">
-                                    ${paymentDate} ${method}${reference}
+                                    ${paymentDate} ${method}${reference}${discountText}
                                 </td>
                                 <td style="text-align: right; padding: 0.5rem; color: #999; font-size: 1rem;">—</td>
                                 <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(paymentAmount)}</td>
@@ -636,6 +640,10 @@
                     return sum + (doc.data().amount || 0);
                 }, 0);
                 
+                const totalDiscounts = paymentsSnapshot.docs.reduce((sum, doc) => {
+                    return sum + (doc.data().discount_amount || 0);
+                }, 0);
+                
                 // Get invoice document ID
                 const invoiceQuery = await db.collection('handyworks_invoices')
                     .where('invoice_id', '==', invoiceId)
@@ -646,16 +654,16 @@
                     const invoiceDoc = invoiceQuery.docs[0];
                     const invoiceAmount = invoiceDoc.data().amount || 0;
                     
-                    // Update invoice status
+                    // Update invoice status (accounting for discounts)
                     const updateData = {
                         updated_at: firebase.firestore.Timestamp.now(),
                         updated_by: auth.currentUser?.email || 'admin'
                     };
                     
-                    if (totalPaid >= invoiceAmount) {
+                    if (totalPaid + totalDiscounts >= invoiceAmount) {
                         updateData.payment_status = 'paid';
                         updateData.paid_date = firebase.firestore.Timestamp.now();
-                    } else if (totalPaid === 0) {
+                    } else if (totalPaid === 0 && totalDiscounts === 0) {
                         updateData.payment_status = 'pending';
                         updateData.paid_date = null;
                     } else {
@@ -781,6 +789,7 @@
         paymentMethod = document.getElementById('paymentMethod');
         paymentReference = document.getElementById('paymentReference');
         paymentNotes = document.getElementById('paymentNotes');
+        paymentDiscount = document.getElementById('paymentDiscount');
         
         if (!paymentModal) {
             console.error('Payment modal not found');
@@ -791,6 +800,19 @@
         paymentModalClose.addEventListener('click', closePaymentModal);
         paymentCancelButton.addEventListener('click', closePaymentModal);
         recordPaymentButton.addEventListener('click', submitPayment);
+        
+        // Auto-calculate discount when payment method changes to "check"
+        if (paymentMethod) {
+            paymentMethod.addEventListener('change', function() {
+                if (this.value === 'check' && paymentDiscount) {
+                    const settings = getBusinessSettings();
+                    const discount = settings.cardAmount - settings.checkAmount;
+                    paymentDiscount.value = discount.toFixed(2);
+                } else if (paymentDiscount) {
+                    paymentDiscount.value = '0.00';
+                }
+            });
+        }
         
         // Close on outside click
         paymentModal.addEventListener('click', (e) => {
@@ -824,8 +846,9 @@
         document.getElementById('paymentCustomerName').textContent = customerName;
         document.getElementById('paymentInvoiceId').textContent = invoice.invoice_id || 'N/A';
         document.getElementById('paymentYear').textContent = invoice.year || 'N/A';
+        const totalDiscounts = invoice.totalDiscounts || 0;
         document.getElementById('paymentBilled').textContent = `$${formatCurrency(invoice.amount || 0)}`;
-        document.getElementById('paymentPaidSoFar').textContent = `$${formatCurrency(invoice.totalPaid || 0)}`;
+        document.getElementById('paymentPaidSoFar').textContent = `$${formatCurrency(invoice.totalPaid || 0)}${totalDiscounts > 0 ? ` + $${formatCurrency(totalDiscounts)} discount` : ''}`;
         document.getElementById('paymentOwed').textContent = `$${formatCurrency(invoice.amountOwed || 0)}`;
         
         // Show payment history if exists
@@ -838,10 +861,12 @@
                 const date = p.payment_date?.toDate ? p.payment_date.toDate().toLocaleDateString() : 'N/A';
                 const method = p.payment_method || 'Unknown';
                 const amount = formatCurrency(p.amount || 0);
+                const discount = p.discount_amount || 0;
+                const discountText = discount > 0 ? ` <span style="color: #28a745; font-weight: bold;">(discount: $${formatCurrency(discount)})</span>` : '';
                 const reference = p.payment_reference ? ` (${p.payment_reference})` : '';
                 const recordedBy = p.recorded_by || 'Unknown';
                 return `<div style="padding: 0.25rem 0; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
-                    <span>${date}: <strong>$${amount}</strong> via ${method}${reference} <small style="color: #666;">(by ${recordedBy})</small></span>
+                    <span>${date}: <strong>$${amount}</strong>${discountText} via ${method}${reference} <small style="color: #666;">(by ${recordedBy})</small></span>
                     <button onclick="deletePayment('${p.id}', '${invoice.id}', event)" 
                             style="background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.75rem;"
                             title="Delete payment">Delete</button>
@@ -856,6 +881,9 @@
         paymentMethod.value = '';
         paymentReference.value = '';
         paymentNotes.value = '';
+        if (paymentDiscount) {
+            paymentDiscount.value = '0.00';
+        }
         
         // Reset state
         hidePaymentMessages();
@@ -900,12 +928,21 @@
             return;
         }
         
+        // Get discount amount
+        const discountAmount = parseFloat(paymentDiscount.value) || 0;
+        
         // Confirm payment
-        const confirmMsg = 
+        let confirmMsg = 
             `Record this payment?\n\n` +
             `Customer: ${currentPaymentUser.fname} ${currentPaymentUser.lname}\n` +
             `Invoice: ${currentPaymentInvoice.invoice_id}\n` +
-            `Amount: $${amount.toFixed(2)}\n` +
+            `Amount: $${amount.toFixed(2)}\n`;
+        
+        if (discountAmount > 0) {
+            confirmMsg += `Discount: $${discountAmount.toFixed(2)}\n`;
+        }
+        
+        confirmMsg += 
             `Method: ${method}\n` +
             `Reference: ${paymentReference.value || '(none)'}\n\n` +
             `This will create a payment record in the database.`;
@@ -918,6 +955,9 @@
             setRecordPaymentLoading(true);
             hidePaymentMessages();
             
+            // Get discount amount (default to 0 if not provided)
+            const discountAmount = parseFloat(paymentDiscount.value) || 0;
+            
             // Create payment record
             const paymentData = {
                 invoice_id: currentPaymentInvoice.invoice_id,
@@ -925,6 +965,7 @@
                 customer_name: formatCustomerName(currentPaymentUser),
                 customer_email: currentPaymentUser.email || '',
                 amount: amount,
+                discount_amount: discountAmount,
                 payment_date: firebase.firestore.Timestamp.now(),
                 payment_method: method,
                 payment_reference: paymentReference.value.trim() || '',
@@ -940,9 +981,10 @@
             
             console.log('Payment recorded successfully:', paymentData);
             
-            // Update invoice status if fully paid
+            // Update invoice status if fully paid (accounting for discounts)
             const newTotalPaid = (currentPaymentInvoice.totalPaid || 0) + amount;
-            if (newTotalPaid >= currentPaymentInvoice.amount) {
+            const newTotalDiscounts = (currentPaymentInvoice.totalDiscounts || 0) + discountAmount;
+            if (newTotalPaid + newTotalDiscounts >= currentPaymentInvoice.amount) {
                 await db.collection('handyworks_invoices').doc(currentPaymentInvoice.id).update({
                     payment_status: 'paid',
                     paid_date: firebase.firestore.Timestamp.now(),
@@ -1896,7 +1938,8 @@ ${bodyContent}
                 
                 const payments = paymentsSnapshot.docs.map(doc => doc.data());
                 const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-                const amountOwed = existingInvoice.amount - totalPaid;
+                const totalDiscounts = payments.reduce((sum, p) => sum + (p.discount_amount || 0), 0);
+                const amountOwed = existingInvoice.amount - totalPaid - totalDiscounts;
                 
                 const statusText = existingInvoice.payment_status === 'paid' ? 'PAID' : 
                                  existingInvoice.payment_status === 'pending' ? 'PENDING' : 
@@ -1908,7 +1951,7 @@ ${bodyContent}
                     showModalError(
                         `Cannot create new invoice: ${invoiceData.year} invoice is already PAID.\n\n` +
                         `Amount Billed: $${existingInvoice.amount}\n` +
-                        `Amount Paid: $${totalPaid.toFixed(2)}\n\n` +
+                        `Amount Paid: $${totalPaid.toFixed(2)}${totalDiscounts > 0 ? ` + Discounts: $${totalDiscounts.toFixed(2)}` : ''}\n\n` +
                         `This customer has already paid for ${invoiceData.year}.`
                     );
                     setTimeout(() => closeInvoiceModal(), 3000);
@@ -1916,12 +1959,12 @@ ${bodyContent}
                 }
                 
                 // Block if there are partial payments
-                if (payments.length > 0 && totalPaid > 0) {
+                if (payments.length > 0 && (totalPaid > 0 || totalDiscounts > 0)) {
                     showModalError(
                         `Cannot create new invoice: Existing invoice has PARTIAL PAYMENTS.\n\n` +
                         `Invoice: ${existingInvoice.invoice_id}\n` +
                         `Amount Billed: $${existingInvoice.amount}\n` +
-                        `Amount Paid: $${totalPaid.toFixed(2)}\n` +
+                        `Amount Paid: $${totalPaid.toFixed(2)}${totalDiscounts > 0 ? ` + Discounts: $${totalDiscounts.toFixed(2)}` : ''}\n` +
                         `Amount Owed: $${amountOwed.toFixed(2)}\n` +
                         `Payments: ${payments.length} payment(s)\n\n` +
                         `Please either:\n` +

@@ -790,3 +790,284 @@ The `markdown_to_html()` function in `scripts/generate_html.py` is too basic and
 
 **Status:** Phase 3 (Content Migration) - Blog migration complete, hybrid layout implemented, formatting cleanup complete.
 
+---
+
+## Background and Motivation
+
+**New Feature Request (January 2025):** Payment Discount Recording
+
+**Problem Statement:**
+The HandyWorks invoicing system offers a discount for check payments (typically $15 off the card payment amount). When a client pays by check and takes the discount, the system currently has no way to record that a discount was applied. This creates a problem:
+
+- Invoice amount: $555 (card payment)
+- Check payment amount: $540 (with $15 discount)
+- Current system behavior: Sees $540 < $555 and marks invoice as "partially paid" instead of "fully paid with discount"
+
+**Business Impact:**
+- Cannot accurately track which payments used discounts
+- Invoice status incorrectly shows as "pending" when discount payments fully satisfy the invoice
+- No audit trail for discount usage
+- Financial reporting may be inaccurate
+
+**User Request:**
+"I have no way to record there was a discount applied" when a client makes a check payment with discount.
+
+---
+
+## Key Challenges and Analysis
+
+### Current System Architecture
+
+**Invoice System:**
+- Invoices stored in `handyworks_invoices` Firestore collection
+- Each invoice has:
+  - `amount`: The billed amount (typically $555 for card payment)
+  - `payment_status`: 'pending', 'paid', 'overdue'
+  - `totalPaid`: Calculated sum of all payment amounts
+  - `amountOwed`: Calculated as `amount - totalPaid`
+
+**Payment System:**
+- Payments stored in `handyworks_payments` Firestore collection
+- Current payment fields:
+  - `invoice_id`: Reference to invoice
+  - `acct_num`: Account number
+  - `customer_name`, `customer_email`: Customer info
+  - `amount`: Payment amount received
+  - `payment_date`: When payment was received
+  - `payment_method`: 'check', 'credit_card', 'phone_card', 'fax_card', 'cash', 'other', 'stripe'
+  - `payment_reference`: Check number, auth code, etc.
+  - `notes`: Additional notes
+  - `stripe_payment_intent_id`, `stripe_session_id`: For Stripe payments
+  - `recorded_by`: Who recorded the payment
+  - `created_at`: Timestamp
+  - `status`: 'completed'
+
+**Settings System:**
+- Settings stored in localStorage (business settings)
+- `cardAmount`: Default card payment amount ($555)
+- `checkAmount`: Default check payment amount with discount ($540)
+- Discount calculated as: `cardAmount - checkAmount` (typically $15)
+
+**Payment Status Calculation:**
+- Currently compares: `totalPaid >= invoice.amount`
+- Problem: If invoice is $555 and payment is $540 (with discount), `540 < 555` so status remains "pending"
+- Should compare: `totalPaid + totalDiscounts >= invoice.amount`
+
+### Technical Challenges
+
+1. **Data Model:**
+   - Need to add `discount_amount` field to payment records
+   - Must be backward compatible (existing payments have no discount)
+   - Default value should be 0 for existing/new payments without discount
+
+2. **UI/UX:**
+   - Payment modal needs discount input field
+   - Should auto-calculate discount when check payment method selected
+   - Should allow manual override
+   - Need to display discount in payment history
+
+3. **Business Logic:**
+   - Payment status calculation must account for discounts
+   - Need to handle both discounted and non-discounted payments
+   - Stripe payments (via webhook) should not have discounts (they pay full card amount)
+
+4. **Display/Reporting:**
+   - Payment history should show discount information
+   - Invoice display should show if discount was applied
+   - Statistics/reports may need discount totals
+
+### Solution Approach
+
+**Simple, Incremental Solution:**
+1. Add `discount_amount` field to payment data model (default: 0)
+2. Update payment recording UI to include discount field
+3. Auto-calculate discount for check payments based on settings
+4. Update payment status calculation to include discounts
+5. Display discount in payment history and invoice details
+
+**Key Design Decisions:**
+- Store discount as separate field (not calculated) for audit trail
+- Auto-populate discount for check payments but allow manual override
+- Discount is optional (can be 0 for full payments)
+- Backward compatible: existing payments default to discount_amount = 0
+
+---
+
+## High-level Task Breakdown
+
+### Task 1: Update Payment Data Model
+**Objective:** Add discount_amount field to payment records
+
+**Tasks:**
+- [ ] Review current payment data structure in `handyworks_payments` collection
+- [ ] Document new field: `discount_amount` (number, default: 0)
+- [ ] Update payment creation code to include discount_amount field
+- [ ] Ensure backward compatibility (existing payments work without discount)
+
+**Success Criteria:**
+- Payment records can store discount_amount field
+- Default value is 0 if not specified
+- Existing payment records continue to work
+- No breaking changes to existing code
+
+**Files to Modify:**
+- `js/admin-dashboard.js` (submitPayment function)
+- `api/stripeWebhook.js` (if needed, though Stripe payments shouldn't have discounts)
+
+---
+
+### Task 2: Update Payment Recording UI
+**Objective:** Add discount input field to payment modal
+
+**Tasks:**
+- [ ] Add discount amount input field to payment modal HTML
+- [ ] Add logic to auto-calculate discount when "check" payment method selected
+- [ ] Allow manual override of discount amount
+- [ ] Show discount in payment confirmation dialog
+- [ ] Validate discount amount (must be >= 0, reasonable range)
+
+**Success Criteria:**
+- Payment modal displays discount field
+- Discount auto-calculates for check payments (cardAmount - checkAmount from settings)
+- User can manually adjust discount amount
+- Discount is included in payment confirmation
+- UI is intuitive and clear
+
+**Files to Modify:**
+- `billing/admin.html` (payment modal HTML)
+- `js/admin-dashboard.js` (payment modal initialization and submission)
+
+---
+
+### Task 3: Update Payment Status Calculation
+**Objective:** Account for discounts when determining if invoice is fully paid
+
+**Tasks:**
+- [ ] Update `loadUsers()` function to calculate total discounts per invoice
+- [ ] Modify payment status logic: `totalPaid + totalDiscounts >= invoice.amount`
+- [ ] Update invoice display to show discount information
+- [ ] Ensure Stripe webhook payment status calculation accounts for discounts (if applicable)
+
+**Success Criteria:**
+- Invoice marked as "paid" when `totalPaid + totalDiscounts >= invoice.amount`
+- Discount payments correctly mark invoice as fully paid
+- Payment history shows discount amounts
+- Invoice details display total discounts applied
+
+**Files to Modify:**
+- `js/admin-dashboard.js` (loadUsers, payment status calculation)
+- `api/stripeWebhook.js` (payment status update logic)
+
+---
+
+### Task 4: Display Discount Information
+**Objective:** Show discount information in payment history and invoice details
+
+**Tasks:**
+- [ ] Update payment history display to show discount amount
+- [ ] Add discount column/indicator in payment rows
+- [ ] Update invoice details to show total discounts applied
+- [ ] Format discount display clearly (e.g., "$540 (discount: $15)")
+
+**Success Criteria:**
+- Payment history clearly shows discount amounts
+- Invoice details show total discounts
+- Discount information is easy to understand
+- Visual distinction for discounted payments
+
+**Files to Modify:**
+- `js/admin-dashboard.js` (payment history rendering, invoice display)
+
+---
+
+### Task 5: Testing and Validation
+**Objective:** Ensure all functionality works correctly
+
+**Tasks:**
+- [ ] Test recording payment with discount
+- [ ] Test recording payment without discount
+- [ ] Test auto-calculation of discount for check payments
+- [ ] Test manual override of discount amount
+- [ ] Test invoice status updates correctly with discounts
+- [ ] Test backward compatibility (existing payments without discount)
+- [ ] Test edge cases (discount > invoice amount, negative discount, etc.)
+
+**Success Criteria:**
+- All payment scenarios work correctly
+- Invoice status accurately reflects payment + discount
+- No regressions in existing functionality
+- Edge cases handled gracefully
+
+---
+
+## Project Status Board
+
+- [ ] Task 1: Update Payment Data Model
+- [ ] Task 2: Update Payment Recording UI
+- [ ] Task 3: Update Payment Status Calculation
+- [ ] Task 4: Display Discount Information
+- [ ] Task 5: Testing and Validation
+
+---
+
+## Current Status / Progress Tracking
+
+**Planner (January 2025):** Created comprehensive plan for payment discount recording feature
+- Analyzed current invoicing and payment system
+- Identified problem: Cannot record discounts on check payments
+- Designed solution: Add discount_amount field, update UI, fix payment status calculation
+- Documented 5 tasks with clear success criteria
+- Plan ready for Executor implementation
+
+**Executor (January 2025):** Implementation completed for payment discount recording feature
+- ✅ Task 1: Updated payment data model - Added `discount_amount` field to payment records (default: 0)
+  - Updated `js/admin-dashboard.js` submitPayment function
+  - Updated `api/stripeWebhook.js` to include discount_amount field (0 for Stripe payments)
+- ✅ Task 2: Updated payment recording UI - Added discount input field to payment modal
+  - Added discount field to `billing/admin.html` payment modal
+  - Added auto-calculation when "check" payment method selected
+  - Added manual override capability
+  - Updated confirmation dialog to show discount
+- ✅ Task 3: Updated payment status calculation - Accounts for discounts when determining if invoice is fully paid
+  - Updated `loadUsers()` to calculate `totalDiscounts` per invoice
+  - Modified payment status logic: `totalPaid + totalDiscounts >= invoice.amount`
+  - Updated invoice deletion check to account for discounts
+  - Updated invoice creation check to account for discounts
+  - Updated Stripe webhook to account for discounts
+- ✅ Task 4: Display discount information - Shows discount in payment history and invoice details
+  - Payment history in modal shows discount amounts
+  - Payment rows in main table show discount information
+  - Invoice details in payment modal show total discounts
+  - Discount displayed in green for visual distinction
+- ⏳ Task 5: Testing and Validation - Ready for user testing
+
+**Implementation Summary:**
+- All code changes completed
+- Backward compatible (existing payments default to discount_amount = 0)
+- Auto-calculates discount for check payments based on settings
+- Manual override available
+- Payment status correctly accounts for discounts
+- Discount information displayed throughout UI
+
+**Next Steps:**
+- User should test the feature with a real payment scenario
+- Verify that check payments with discount correctly mark invoice as paid
+- Test edge cases (partial payments, multiple payments, etc.)
+
+---
+
+## Executor's Feedback or Assistance Requests
+
+**Executor (January 2025):** Implementation complete. All code changes have been made. The feature is ready for testing. Please test with a real payment scenario to verify:
+1. Recording a check payment with discount correctly marks invoice as paid
+2. Auto-calculation works when selecting "check" payment method
+3. Manual discount override works
+4. Payment history displays discount information correctly
+5. Invoice status updates correctly with discounts
+
+---
+
+## Lessons
+
+*(To be filled during implementation if any issues arise)*
+

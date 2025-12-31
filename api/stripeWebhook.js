@@ -150,6 +150,7 @@ async function handleCheckoutSessionCompleted(session) {
     customer_name: customerName || 'Unknown',
     customer_email: customerEmail,
     amount: paymentAmount,
+    discount_amount: 0, // Stripe payments don't have discounts
     payment_date: admin.firestore.Timestamp.now(),
     payment_method: 'stripe',
     payment_reference: session.payment_intent,
@@ -164,13 +165,17 @@ async function handleCheckoutSessionCompleted(session) {
   await db.collection('handyworks_payments').add(paymentData);
   console.log(`Payment record created for invoice ${invoiceId}`);
 
-  // Calculate total paid for this invoice
+  // Calculate total paid and total discounts for this invoice
   const paymentsSnapshot = await db.collection('handyworks_payments')
     .where('invoice_id', '==', invoiceId)
     .get();
   
   const totalPaid = paymentsSnapshot.docs.reduce((sum, doc) => {
     return sum + (doc.data().amount || 0);
+  }, 0);
+  
+  const totalDiscounts = paymentsSnapshot.docs.reduce((sum, doc) => {
+    return sum + (doc.data().discount_amount || 0);
   }, 0);
 
   // Update invoice status based on total payments
@@ -181,13 +186,13 @@ async function handleCheckoutSessionCompleted(session) {
     updated_by: 'stripe_webhook',
   };
 
-  // If fully paid, mark as paid
-  if (totalPaid >= invoiceData.amount) {
+  // If fully paid (accounting for discounts), mark as paid
+  if (totalPaid + totalDiscounts >= invoiceData.amount) {
     updateData.payment_status = 'paid';
     updateData.paid_date = admin.firestore.Timestamp.now();
-    console.log(`Invoice ${invoiceId} fully paid (total: $${totalPaid})`);
+    console.log(`Invoice ${invoiceId} fully paid (total: $${totalPaid} + discounts: $${totalDiscounts})`);
   } else {
-    console.log(`Invoice ${invoiceId} partially paid (total: $${totalPaid} of $${invoiceData.amount})`);
+    console.log(`Invoice ${invoiceId} partially paid (total: $${totalPaid} + discounts: $${totalDiscounts} of $${invoiceData.amount})`);
   }
 
   await invoiceDoc.ref.update(updateData);
