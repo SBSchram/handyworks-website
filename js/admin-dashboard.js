@@ -769,6 +769,7 @@
     let paymentMethod = null;
     let paymentReference = null;
     let paymentNotes = null;
+    let paymentDiscount = null;
     let currentPaymentInvoice = null;
     let currentPaymentUser = null;
     let paymentModalInitialized = false;
