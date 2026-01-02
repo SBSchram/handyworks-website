@@ -26,6 +26,8 @@ NUHS_Evidence_Analysis_Summary.docx
 VU_Evidence_Analysis_Summary.docx
 
 # ACAHM School Evaluation Scripts - Contains proprietary paths and data
+# Moved to scripts/acahm/ subdirectory
+scripts/acahm/
 scripts/run_all_schools_analysis.py
 scripts/run_analysis_for_school.py
 scripts/run_analysis_all_schools.py

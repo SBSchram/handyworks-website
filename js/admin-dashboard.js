@@ -160,16 +160,25 @@
                     const amountOwed = (invoice.amount || 0) - totalPaid - totalDiscounts;
                     
                     // Determine current payment status
-                    let paymentStatus = invoice.payment_status || 'pending';
+                    // Calculate total paid including discounts
+                    const totalPaidWithDiscounts = totalPaid + totalDiscounts;
+                    const invoiceAmount = Number(invoice.amount) || 0;
                     
-                    // Auto-update status based on payments (accounting for discounts)
-                    if (totalPaid + totalDiscounts >= invoice.amount) {
+                    // Set payment status based on actual payments (accounting for discounts)
+                    let paymentStatus;
+                    if (totalPaidWithDiscounts >= invoiceAmount) {
                         paymentStatus = 'paid';
-                    } else if (paymentStatus !== 'cancelled' && invoice.due_date) {
+                    } else if (invoice.payment_status === 'cancelled') {
+                        paymentStatus = 'cancelled';
+                    } else if (invoice.due_date && amountOwed > 0) {
                         const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
-                        if (new Date() > dueDate && amountOwed > 0) {
+                        if (new Date() > dueDate) {
                             paymentStatus = 'overdue';
+                        } else {
+                            paymentStatus = 'pending';
                         }
+                    } else {
+                        paymentStatus = 'pending';
                     }
                     
                     return {
@@ -985,7 +994,8 @@
             // Update invoice status if fully paid (accounting for discounts)
             const newTotalPaid = (currentPaymentInvoice.totalPaid || 0) + amount;
             const newTotalDiscounts = (currentPaymentInvoice.totalDiscounts || 0) + discountAmount;
-            if (newTotalPaid + newTotalDiscounts >= currentPaymentInvoice.amount) {
+            const invoiceAmount = Number(currentPaymentInvoice.amount) || 0;
+            if (newTotalPaid + newTotalDiscounts >= invoiceAmount) {
                 await db.collection('handyworks_invoices').doc(currentPaymentInvoice.id).update({
                     payment_status: 'paid',
                     paid_date: firebase.firestore.Timestamp.now(),
