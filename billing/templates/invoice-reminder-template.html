@@ -15,12 +15,16 @@
             font-weight: normal;
             margin-bottom: 20px;
         }
-        .intro {
-            margin-bottom: 20px;
+        .reminder-notice {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            font-weight: bold;
         }
         .amount-section {
             background-color: #f8f9fa;
-            border-left: 4px solid #008080;
+            border-left: 4px solid #dc3545;
             padding: 15px;
             margin: 20px 0;
         }
@@ -33,7 +37,7 @@
         }
         .payment-link {
             display: inline-block;
-            background-color: #008080;
+            background-color: #dc3545;
             color: white;
             padding: 10px 20px;
             text-decoration: none;
@@ -42,7 +46,7 @@
             margin-top: 10px;
         }
         .payment-link:hover {
-            background-color: #006666;
+            background-color: #c82333;
         }
         .check-address {
             background-color: #fff;
@@ -67,28 +71,30 @@
             margin-top: 20px;
             font-weight: bold;
         }
+        .urgent {
+            color: #dc3545;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="greeting">[Greeting]</div>
     
-    <div class="intro">
-        <p>We are doing our billing differently this year!</p>
-        
-        <p>Rather than print and mail your invoice like we've done in the past, we're sending this email with a payment link included.</p>
-        
-        <p>No worries - you can still do it the old way and call us at [SupportPhone] with your credit card info -or- send via a fax to [FaxNumber]. But we thought this method would be easier. And rather than wait till January to mail the invoice, we're doing it just before the end of the year.</p>
+    <div class="reminder-notice">
+        <p>This is a friendly reminder that your HandyWorks maintenance fee for [Year] is still outstanding.</p>
     </div>
     
     <div class="amount-section">
-        <p><strong>INVOICE: Your annual HandyWorks maintenance fee $[CardAmount] for [Year] is due January 1. The fee remains unchanged from last year</strong></p>
+        <p><strong>Your annual HandyWorks maintenance fee for [Year] is <span class="urgent">$[CardAmount]</span>.</strong></p>
+        <p>Payment was due by January 31, [Year]. Please remit payment at your earliest convenience.</p>
     </div>
     
     <div class="options">
-        <p><strong>Options:</strong></p>
+        <p><strong>Payment Options:</strong></p>
         
         <div class="payment-option">
-            <p><a href="[PaymentLink]" class="payment-link">Click here to pay $[CardAmount] securely via credit card through Stripe</a></p>
+            <p><strong>Pay $[CardAmount] via Stripe:</strong></p>
+            <a href="[PaymentLink]" class="payment-link">[PaymentLinkText]</a>
         </div>
         
         <div class="payment-option">
@@ -96,19 +102,25 @@
         </div>
         
         <div class="payment-option">
-            <p><strong>to save $[CheckDiscount], pay $[CheckAmount] by check and mail it to:</strong></p>
+            <p><strong>Pay $[CheckAmount] by check and save $[CheckDiscount].</strong> You can send a check to:</p>
             <div class="check-address">[Address]</div>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+            <p>Call us at [SupportPhone] to pay by credit card over the phone.</p>
         </div>
     </div>
     
     <div class="terms">
-        <p>As in the past, we charge maintenance once per calendar year and this invoice covers HandyWork support charges for [Year]. This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support. In good faith while awaiting your payment, we will continue to provide phone support until January 31.</p>
+        <p>This invoice covers HandyWork support charges for [Year] (December [Year-1] - November [Year]). This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support.</p>
+        <p class="urgent">Please note: Support services may be suspended if payment is not received by February 15, [Year].</p>
     </div>
     
     <div class="closing">
-        <p>Thank you for your continued business! We appreciate your support and look forward to serving you in [Year].</p>
+        <p>Thank you for your continued business! We appreciate your prompt attention to this matter.</p>
         
-        <p>If you have any questions about this invoice, please don't hesitate to contact us.</p>
+        <p>If you have any questions about this invoice or have already sent payment, please don't hesitate to contact us at [SupportPhone] or [SupportEmail].</p>
     </div>
     
     <div class="signature">

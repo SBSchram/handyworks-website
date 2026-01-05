@@ -165,19 +165,28 @@
                     const invoiceAmount = Number(invoice.amount) || 0;
                     
                     // Set payment status based on actual payments (accounting for discounts)
+                    // Always use calculated amountOwed, not stored payment_status
                     let paymentStatus;
-                    if (totalPaidWithDiscounts >= invoiceAmount) {
-                        paymentStatus = 'paid';
-                    } else if (invoice.payment_status === 'cancelled') {
+                    if (invoice.payment_status === 'cancelled') {
                         paymentStatus = 'cancelled';
-                    } else if (invoice.due_date && amountOwed > 0) {
-                        const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
-                        if (new Date() > dueDate) {
-                            paymentStatus = 'overdue';
+                    } else if (totalPaidWithDiscounts >= invoiceAmount && invoiceAmount > 0) {
+                        // Fully paid: total paid + discounts >= invoice amount
+                        paymentStatus = 'paid';
+                    } else if (amountOwed > 0) {
+                        // Has amount owed - check if overdue
+                        if (invoice.due_date) {
+                            const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
+                            if (new Date() > dueDate) {
+                                paymentStatus = 'overdue';
+                            } else {
+                                paymentStatus = 'pending';
+                            }
                         } else {
                             paymentStatus = 'pending';
                         }
                     } else {
+                        // amountOwed <= 0 but totalPaidWithDiscounts < invoiceAmount (edge case)
+                        // This shouldn't happen, but treat as pending
                         paymentStatus = 'pending';
                     }
                     
@@ -199,8 +208,19 @@
                 user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
             });
             
-            // Sort users by last name (ascending), then first name
+            // Sort users: unpaid first, then paid; within each group, sort by name
             allUsers.sort((a, b) => {
+                // Define payment status priority: unpaid statuses come first
+                const unpaidStatuses = ['overdue', 'pending', 'no-invoice'];
+                const aIsUnpaid = unpaidStatuses.includes(a.paymentStatus);
+                const bIsUnpaid = unpaidStatuses.includes(b.paymentStatus);
+                
+                // First, sort by payment status (unpaid first)
+                if (aIsUnpaid !== bIsUnpaid) {
+                    return aIsUnpaid ? -1 : 1; // unpaid comes first (negative = earlier in array)
+                }
+                
+                // Within same payment status group, sort by last name, then first name
                 const aLname = (a.lname || '').toLowerCase();
                 const bLname = (b.lname || '').toLowerCase();
                 const aFname = (a.fname || '').toLowerCase();
@@ -356,7 +376,18 @@
                     const totalOwed = invoice.amountOwed || 0;
                     let actionButton = '';
                     if (totalOwed > 0) {
+                        // Check if we should show "Generate Reminder" button (mid-January or later)
+                        const shouldShowReminder = isMidJanuaryOrLater();
+                        const reminderButton = shouldShowReminder ? `
+                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #ffc107; color: #333; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.5rem;" 
+                                    onclick="generateReminderInvoice('${invoice.id}', '${user.acct_num}', '${invoice.invoice_id}', '${invoice.year}')"
+                                    title="Generate reminder invoice email">
+                                Generate Reminder
+                            </button>
+                        ` : '';
+                        
                         actionButton = `
+                            ${reminderButton}
                             <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
                                     onclick="recordPaymentForInvoice('${invoice.id}', '${user.acct_num}')">
                                 Record Payment
@@ -1166,8 +1197,81 @@
     let editedInvoiceHtml = null;
     let invoiceTemplateHead = null; // Store the <head> section separately
     
+    // Check if current date is mid-January or later (for reminder invoices)
+    function isMidJanuaryOrLater() {
+        const now = new Date();
+        const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+        const currentDay = now.getDate();
+        
+        // If we're past January 15, or in February or later, show reminder option
+        if (currentMonth > 0) { // February or later
+            return true;
+        }
+        if (currentMonth === 0 && currentDay >= 15) { // January 15 or later
+            return true;
+        }
+        return false;
+    }
+    
+    // Generate reminder invoice for unpaid invoices
+    async function generateReminderInvoice(invoiceId, acctNum, invoiceIdStr, year) {
+        try {
+            // Get invoice data
+            const invoiceDoc = await db.collection('handyworks_invoices').doc(invoiceId).get();
+            if (!invoiceDoc.exists) {
+                alert('Invoice not found');
+                return;
+            }
+            
+            const invoice = invoiceDoc.data();
+            
+            // Get user data
+            const userDoc = await db.collection('handyworks_users').doc(acctNum.toString()).get();
+            if (!userDoc.exists) {
+                alert('User not found');
+                return;
+            }
+            const user = userDoc.data();
+            
+            // Check if invoice has payment link
+            if (!invoice.stripe_payment_link_url) {
+                alert('This invoice does not have a payment link. Please generate a new invoice first.');
+                return;
+            }
+            
+            // Prepare invoice data for template
+            const invoiceData = {
+                acct_num: user.acct_num,
+                customer_name: invoice.customer_name || formatCustomerName(user),
+                customer_email: user.EMAIL || invoice.customer_email || '',
+                clinic_name: user.clinic || '',
+                year: year || invoice.year,
+                amount: invoice.amount,
+                description: `Annual Maintenance Reminder ${year || invoice.year}`
+            };
+            
+            const paymentLink = {
+                url: invoice.stripe_payment_link_url,
+                id: invoice.stripe_payment_link_id || 'existing'
+            };
+            
+            // Load reminder template and generate email
+            const emailData = await loadInvoiceTemplate(invoiceData, paymentLink, true); // true = reminder template
+            
+            // Open editor with reminder template
+            await openInvoiceEditorModal(invoiceData, paymentLink, emailData);
+            
+        } catch (error) {
+            console.error('Error generating reminder invoice:', error);
+            alert('Error generating reminder invoice: ' + error.message);
+        }
+    }
+    
+    // Make generateReminderInvoice available globally
+    window.generateReminderInvoice = generateReminderInvoice;
+    
     // Load invoice template and replace placeholders
-    async function loadInvoiceTemplate(invoiceData, paymentLink) {
+    async function loadInvoiceTemplate(invoiceData, paymentLink, isReminder = false) {
         try {
             let templateHtml = null;
             let source = 'unknown';
@@ -1186,7 +1290,10 @@
             
             // Fallback to file if Firebase doesn't have it
             if (!templateHtml) {
-                const templateUrl = 'templates/invoice-template.html';
+                // Use reminder template if requested, otherwise use regular template
+                const templateFileName = isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html';
+                // Template path is relative to billing/ directory where admin.html is located
+                const templateUrl = `templates/${templateFileName}`;
                 const response = await fetch(templateUrl);
                 
                 if (!response.ok) {
@@ -1195,7 +1302,7 @@
                 
                 templateHtml = await response.text();
                 source = 'File';
-                console.log('Template loaded from file');
+                console.log(`Template loaded from file: ${templateFileName}`);
             }
             
             // Get business settings
@@ -1231,12 +1338,16 @@ New York City, NY 10016`;
             }
             
             // Replace placeholders
+            const billingYear = parseInt(invoiceData.year) || new Date().getFullYear();
+            const previousYear = billingYear - 1; // For Dec YYYY-1 to Nov YYYY billing period
+            
             const replacements = {
                 '[Greeting]': greeting,
                 '[Lastname]': lastName,
                 '[Firstname]': firstName,
                 '[Fullname]': fullName,
-                '[Year]': invoiceData.year.toString(),
+                '[Year]': billingYear.toString(),
+                '[Year-1]': previousYear.toString(), // Previous year for billing period (Dec YYYY-1 to Nov YYYY)
                 '[CardAmount]': settings.cardAmount.toString(),
                 '[CheckAmount]': settings.checkAmount.toString(),
                 '[CheckDiscount]': checkDiscount.toString(),
@@ -1925,8 +2036,16 @@ ${bodyContent}
         }
         
         // Get form values
-        const currentYear = new Date().getFullYear();
-        const billingYear = currentYear + 1; // We always bill next year
+        // Billing period runs December to November (e.g., Dec 2025 - Nov 2026 = billing year 2026)
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+        
+        // If we're in December (month 11), we're starting the new billing year (Dec YYYY - Nov YYYY+1)
+        // If we're in January-November (months 0-10), we're still in the current billing year (Dec YYYY-1 - Nov YYYY)
+        // Billing year = the year that contains November (the end of the period)
+        const billingYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+        
         const invoiceData = {
             acct_num: currentUser.acct_num,
             customer_name: formatCustomerName(currentUser),
@@ -1934,7 +2053,7 @@ ${bodyContent}
             clinic_name: currentUser.clinic || '', // Keep for database if present, not shown in form
             year: billingYear,
             amount: parseFloat(invoiceAmount.value),
-            description: `Annual Maintenance ${billingYear}`
+            description: `Annual Maintenance ${billingYear} (Dec ${billingYear - 1}-Nov ${billingYear})`
         };
         
         // Validate
