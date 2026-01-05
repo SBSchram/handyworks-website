@@ -194,9 +194,15 @@
                 // Sort invoices by year (newest first)
                 user.invoices.sort((a, b) => (b.year || 0) - (a.year || 0));
                 
-                // For backward compatibility, set 2026 invoice and overall payment status
-                const currentYear = new Date().getFullYear();
-                const targetYear = currentYear + 1;
+                // Calculate current billing year (December to November period)
+                // Billing period runs Dec YYYY to Nov YYYY+1, so billing year = year that contains November
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+                // If we're in December, billing year = next year. Otherwise, billing year = current year
+                const targetYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+                
+                // Find invoice for current billing year
                 user.invoice2026 = user.invoices.find(inv => inv.year === targetYear) || null;
                 user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
             });
