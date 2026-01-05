@@ -194,10 +194,8 @@
                 // Sort invoices by year (newest first)
                 user.invoices.sort((a, b) => (b.year || 0) - (a.year || 0));
                 
-                // For backward compatibility, set 2026 invoice and overall payment status
-                const currentYear = new Date().getFullYear();
-                const targetYear = currentYear + 1;
-                user.invoice2026 = user.invoices.find(inv => inv.year === targetYear) || null;
+                // Use the most recent invoice for payment status (regardless of year)
+                user.invoice2026 = user.invoices.length > 0 ? user.invoices[0] : null;
                 user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
             });
             
@@ -512,6 +510,17 @@
     // Update statistics
     function updateStats() {
         totalUsersEl.textContent = allUsers.length;
+        
+        // Update labels (no year specified - shows all invoices)
+        const noInvoiceLabel = document.getElementById('noInvoiceLabel');
+        const pendingLabel = document.getElementById('pendingLabel');
+        const paidLabel = document.getElementById('paidLabel');
+        const overdueLabel = document.getElementById('overdueLabel');
+        
+        if (noInvoiceLabel) noInvoiceLabel.textContent = 'No Invoice';
+        if (pendingLabel) pendingLabel.textContent = 'Pending';
+        if (paidLabel) paidLabel.textContent = 'Paid';
+        if (overdueLabel) overdueLabel.textContent = 'Overdue';
         
         const noInvoice = allUsers.filter(u => u.paymentStatus === 'no-invoice').length;
         const pending = allUsers.filter(u => u.paymentStatus === 'pending').length;
