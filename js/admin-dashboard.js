@@ -207,8 +207,19 @@
                 user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
             });
             
-            // Sort users by last name (ascending), then first name
+            // Sort users: unpaid first, then paid; within each group, sort by name
             allUsers.sort((a, b) => {
+                // Define payment status priority: unpaid statuses come first
+                const unpaidStatuses = ['overdue', 'pending', 'no-invoice'];
+                const aIsUnpaid = unpaidStatuses.includes(a.paymentStatus);
+                const bIsUnpaid = unpaidStatuses.includes(b.paymentStatus);
+                
+                // First, sort by payment status (unpaid first)
+                if (aIsUnpaid !== bIsUnpaid) {
+                    return aIsUnpaid ? -1 : 1; // unpaid comes first (negative = earlier in array)
+                }
+                
+                // Within same payment status group, sort by last name, then first name
                 const aLname = (a.lname || '').toLowerCase();
                 const bLname = (b.lname || '').toLowerCase();
                 const aFname = (a.fname || '').toLowerCase();
