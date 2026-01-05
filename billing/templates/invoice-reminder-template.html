@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .greeting {
+            font-weight: normal;
+            margin-bottom: 20px;
+        }
+        .reminder-notice {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .amount-section {
+            background-color: #f8f9fa;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .options {
+            margin: 20px 0;
+        }
+        .payment-option {
+            margin: 15px 0;
+            padding: 10px;
+        }
+        .payment-link {
+            display: inline-block;
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .payment-link:hover {
+            background-color: #c82333;
+        }
+        .check-address {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-line;
+            line-height: 1.2;
+        }
+        .terms {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 0.95em;
+            color: #666;
+        }
+        .closing {
+            margin-top: 30px;
+        }
+        .signature {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .urgent {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="greeting">[Greeting]</div>
+    
+    <div class="reminder-notice">
+        <p>This is a friendly reminder that your HandyWorks maintenance fee for [Year] is still outstanding.</p>
+    </div>
+    
+    <div class="amount-section">
+        <p><strong>Your annual HandyWorks maintenance fee for [Year] is <span class="urgent">$[CardAmount]</span>.</strong></p>
+        <p>Payment was due by January 31, [Year]. Please remit payment at your earliest convenience.</p>
+    </div>
+    
+    <div class="options">
+        <p><strong>Payment Options:</strong></p>
+        
+        <div class="payment-option">
+            <p><strong>Pay $[CardAmount] via Stripe:</strong></p>
+            <a href="[PaymentLink]" class="payment-link">[PaymentLinkText]</a>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>Pay $[CheckAmount] by check and save $[CheckDiscount].</strong> You can send a check to:</p>
+            <div class="check-address">[Address]</div>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+            <p>Call us at [SupportPhone] to pay by credit card over the phone.</p>
+        </div>
+    </div>
+    
+    <div class="terms">
+        <p>This invoice covers HandyWork support charges for [Year] (December [Year-1] - November [Year]). This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support.</p>
+        <p class="urgent">Please note: Support services may be suspended if payment is not received by February 15, [Year].</p>
+    </div>
+    
+    <div class="closing">
+        <p>Thank you for your continued business! We appreciate your prompt attention to this matter.</p>
+        
+        <p>If you have any questions about this invoice or have already sent payment, please don't hesitate to contact us at [SupportPhone] or [SupportEmail].</p>
+    </div>
+    
+    <div class="signature">
+        <p>Best regards,</p>
+        <p>[Signature]</p>
+    </div>
+</body>
+</html>
