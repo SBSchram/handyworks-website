@@ -165,19 +165,28 @@
                     const invoiceAmount = Number(invoice.amount) || 0;
                     
                     // Set payment status based on actual payments (accounting for discounts)
+                    // Always use calculated amountOwed, not stored payment_status
                     let paymentStatus;
-                    if (totalPaidWithDiscounts >= invoiceAmount) {
-                        paymentStatus = 'paid';
-                    } else if (invoice.payment_status === 'cancelled') {
+                    if (invoice.payment_status === 'cancelled') {
                         paymentStatus = 'cancelled';
-                    } else if (invoice.due_date && amountOwed > 0) {
-                        const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
-                        if (new Date() > dueDate) {
-                            paymentStatus = 'overdue';
+                    } else if (totalPaidWithDiscounts >= invoiceAmount && invoiceAmount > 0) {
+                        // Fully paid: total paid + discounts >= invoice amount
+                        paymentStatus = 'paid';
+                    } else if (amountOwed > 0) {
+                        // Has amount owed - check if overdue
+                        if (invoice.due_date) {
+                            const dueDate = invoice.due_date.toDate ? invoice.due_date.toDate() : new Date(invoice.due_date);
+                            if (new Date() > dueDate) {
+                                paymentStatus = 'overdue';
+                            } else {
+                                paymentStatus = 'pending';
+                            }
                         } else {
                             paymentStatus = 'pending';
                         }
                     } else {
+                        // amountOwed <= 0 but totalPaidWithDiscounts < invoiceAmount (edge case)
+                        // This shouldn't happen, but treat as pending
                         paymentStatus = 'pending';
                     }
                     
@@ -204,7 +213,25 @@
                 
                 // Find invoice for current billing year
                 user.invoice2026 = user.invoices.find(inv => inv.year === targetYear) || null;
-                user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
+                
+                // Determine payment status: prioritize unpaid invoices over paid ones
+                // If there's an unpaid invoice (any year), user is unpaid
+                const unpaidInvoice = user.invoices.find(inv => 
+                    inv.paymentStatus !== 'paid' && 
+                    inv.paymentStatus !== 'cancelled' && 
+                    (inv.amountOwed || 0) > 0
+                );
+                
+                if (unpaidInvoice) {
+                    // User has an unpaid invoice - use that status
+                    user.paymentStatus = unpaidInvoice.paymentStatus;
+                } else if (user.invoice2026) {
+                    // No unpaid invoices, use current billing year invoice status
+                    user.paymentStatus = user.invoice2026.paymentStatus;
+                } else {
+                    // No invoice for current billing year
+                    user.paymentStatus = 'no-invoice';
+                }
             });
             
             // Sort users: unpaid first, then paid; within each group, sort by name
