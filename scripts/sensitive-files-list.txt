@@ -1,17 +1,3 @@
-# Sensitive Data Files - DO NOT COMMIT
-# These contain user personal information (names, emails, addresses, etc.)
-
-# User data files
-hwsales.csv
-scripts/handyworks_data.tsv
-scripts/*.tsv
-scripts/*.csv
-
-# Documentation files (moved to .cursor/)
-scripts/*.md
-
-# ACAHM School Evaluation Data - PROPRIETARY - DO NOT COMMIT
-# These contain sensitive accreditation review information
 INFORMATION_EXPOSED_EVEN_WITH_PRIVACY_MODE.md
 INFORMATION_EXPOSED_EVEN_WITH_PRIVACY_MODE.docx
 AI_DATA_USAGE_RISK_ASSESSMENT.md
@@ -20,14 +6,9 @@ DATA_EXPOSURE_REPORT.md
 DATA_EXPOSURE_REPORT.docx
 CURSOR_SUPPORT_REQUEST.md
 CURSOR_SUPPORT_REQUEST.docx
-*_Evidence_Analysis_Summary.docx
 AAHW_Evidence_Analysis_Summary.docx
 NUHS_Evidence_Analysis_Summary.docx
 VU_Evidence_Analysis_Summary.docx
-
-# ACAHM School Evaluation Scripts - Contains proprietary paths and data
-# Moved to scripts/acahm/ subdirectory
-scripts/acahm/
 scripts/run_all_schools_analysis.py
 scripts/run_analysis_for_school.py
 scripts/run_analysis_all_schools.py
@@ -44,37 +25,8 @@ scripts/extract_compliance_details.py
 scripts/search_compliance_content.py
 scripts/analyze_pdfs.py
 scripts/extract_resume.py
-
-# ACAHM Findings Data - PROPRIETARY
-scripts/*findings*.json
-scripts/*findings*.txt
 scripts/AAHW_findings_extracted.json
 scripts/NUHS_findings_extracted.json
 scripts/NUHS_findings_structured.json
 scripts/NUHS_findings_extraction.txt
 
-# API Keys and Secrets (if added to config.js)
-# Note: API keys should be in environment variables, not in code
-
-# Node modules (if we add npm packages)
-node_modules/
-package-lock.json
-
-# Environment files
-.env
-.env.local
-
-# Firebase service account keys (contains sensitive credentials)
-scripts/serviceAccountKey.json
-**/serviceAccountKey.json
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Editor files
-.vscode/
-.idea/
-.cursor/
-*.swp
-*.swo
