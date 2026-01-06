@@ -190,22 +190,75 @@
                         paymentStatus = 'pending';
                     }
                     
-                    return {
+                    // Create invoice object with calculated values
+                    // IMPORTANT: paymentStatus must be based on amountOwed, not stored payment_status
+                    const invoiceData = {
                         ...invoice,
                         payments: payments,
                         totalPaid: totalPaid,
                         totalDiscounts: totalDiscounts,
                         amountOwed: amountOwed,
-                        paymentStatus: paymentStatus
+                        paymentStatus: paymentStatus // Always use calculated status
                     };
+                    
+                    // Override any stored payment_status with calculated value
+                    // This ensures amountOwed is the source of truth
+                    if (amountOwed > 0 && invoice.payment_status === 'paid') {
+                        // If amountOwed > 0, it cannot be paid - force recalculation
+                        console.warn(`Invoice ${invoice.invoice_id} has payment_status='paid' but amountOwed=$${amountOwed}. Correcting to ${paymentStatus}.`);
+                    }
+                    
+                    return invoiceData;
                 });
                 
                 // Sort invoices by year (newest first)
                 user.invoices.sort((a, b) => (b.year || 0) - (a.year || 0));
                 
-                // Use the most recent invoice for payment status (regardless of year)
-                user.invoice2026 = user.invoices.length > 0 ? user.invoices[0] : null;
-                user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
+                // Calculate current billing year (December to November period)
+                // Billing period runs Dec YYYY to Nov YYYY+1, so billing year = year that contains November
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+                // If we're in December, billing year = next year. Otherwise, billing year = current year
+                const targetYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+                
+                // Find invoice for current billing year
+                user.invoice2026 = user.invoices.find(inv => inv.year === targetYear) || null;
+                
+                // Determine payment status: ALWAYS prioritize amountOwed over stored payment_status
+                // Find any invoice with amountOwed > 0 (this is the source of truth)
+                const unpaidInvoice = user.invoices.find(inv => (inv.amountOwed || 0) > 0);
+                
+                if (unpaidInvoice) {
+                    // User has an unpaid invoice - use calculated status (never use stored payment_status)
+                    // Recalculate status based on amountOwed to ensure accuracy
+                    if (unpaidInvoice.amountOwed > 0) {
+                        if (unpaidInvoice.due_date) {
+                            const dueDate = unpaidInvoice.due_date.toDate ? unpaidInvoice.due_date.toDate() : new Date(unpaidInvoice.due_date);
+                            if (new Date() > dueDate) {
+                                user.paymentStatus = 'overdue';
+                            } else {
+                                user.paymentStatus = 'pending';
+                            }
+                        } else {
+                            user.paymentStatus = 'pending';
+                        }
+                    } else {
+                        user.paymentStatus = unpaidInvoice.paymentStatus;
+                    }
+                } else if (user.invoice2026) {
+                    // No unpaid invoices, check if current billing year invoice is paid
+                    const totalPaid = (user.invoice2026.totalPaid || 0) + (user.invoice2026.totalDiscounts || 0);
+                    const invoiceAmount = Number(user.invoice2026.amount) || 0;
+                    if (totalPaid >= invoiceAmount && invoiceAmount > 0) {
+                        user.paymentStatus = 'paid';
+                    } else {
+                        user.paymentStatus = user.invoice2026.paymentStatus || 'pending';
+                    }
+                } else {
+                    // No invoice for current billing year
+                    user.paymentStatus = 'no-invoice';
+                }
             });
             
             // Sort users: unpaid first, then paid; within each group, sort by name
@@ -541,17 +594,6 @@
     // Update statistics
     function updateStats() {
         totalUsersEl.textContent = allUsers.length;
-        
-        // Update labels (no year specified - shows all invoices)
-        const noInvoiceLabel = document.getElementById('noInvoiceLabel');
-        const pendingLabel = document.getElementById('pendingLabel');
-        const paidLabel = document.getElementById('paidLabel');
-        const overdueLabel = document.getElementById('overdueLabel');
-        
-        if (noInvoiceLabel) noInvoiceLabel.textContent = 'No Invoice';
-        if (pendingLabel) pendingLabel.textContent = 'Pending';
-        if (paidLabel) paidLabel.textContent = 'Paid';
-        if (overdueLabel) overdueLabel.textContent = 'Overdue';
         
         const noInvoice = allUsers.filter(u => u.paymentStatus === 'no-invoice').length;
         const pending = allUsers.filter(u => u.paymentStatus === 'pending').length;
