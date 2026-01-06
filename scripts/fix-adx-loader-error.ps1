@@ -128,3 +128,5 @@ Write-Host "6. Identify which add-in causes the error" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "If problem persists, repair Office installation." -ForegroundColor Yellow
 
+
+
