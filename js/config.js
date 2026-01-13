@@ -1,7 +1,7 @@
 // Configuration file for DRY principle
 // Single source of truth for cache busting and other settings
 window.HandyWorksConfig = {
-    version: '20251219v11',
+    version: '20251219v13',
     cacheBust: true,
     
     // Header configuration

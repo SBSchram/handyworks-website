@@ -441,14 +441,14 @@
                 activeInvoices.forEach((invoice) => {
                     const billed = invoice.amount || 0;
                     
-                    // Format invoice date as YYYY-MM-DD
+                    // Format invoice date as M/D/YY
                     let invoiceDate = 'N/A';
                     if (invoice.created_at?.toDate) {
                         const date = invoice.created_at.toDate();
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        invoiceDate = `${year}-${month}-${day}`;
+                        const year = String(date.getFullYear()).slice(-2); // Last 2 digits
+                        const month = date.getMonth() + 1; // 1-12
+                        const day = date.getDate();
+                        invoiceDate = `${month}/${day}/${year}`;
                     }
                     
                     // Invoice row shows: billed amount, blank paid, initial owed
@@ -538,18 +538,27 @@
                             }
                             paymentRow.style.background = '#ffffff';
                             
-                            // Format payment date as YYYY-MM-DD
+                            // Format payment date as M/D/YY
                             let paymentDate = 'N/A';
                             if (payment.payment_date?.toDate) {
                                 const date = payment.payment_date.toDate();
-                                const year = date.getFullYear();
-                                const month = String(date.getMonth() + 1).padStart(2, '0');
-                                const day = String(date.getDate()).padStart(2, '0');
-                                paymentDate = `${year}-${month}-${day}`;
+                                const year = String(date.getFullYear()).slice(-2); // Last 2 digits
+                                const month = date.getMonth() + 1; // 1-12
+                                const day = date.getDate();
+                                paymentDate = `${month}/${day}/${year}`;
                             }
                             
-                            const method = payment.payment_method || 'Unknown';
-                            const reference = payment.payment_reference ? ` #${payment.payment_reference}` : '';
+                            // Abbreviate payment method (check -> CK)
+                            let method = payment.payment_method || 'Unknown';
+                            if (method.toLowerCase() === 'check') {
+                                method = 'CK';
+                            }
+                            
+                            // Filter out Stripe payment intent IDs (they start with "pi_")
+                            let reference = '';
+                            if (payment.payment_reference && !payment.payment_reference.toLowerCase().includes('pi_')) {
+                                reference = ` #${payment.payment_reference}`;
+                            }
                             const paymentAmount = payment.amount || 0;
                             const discountAmount = payment.discount_amount || 0;
                             const discountText = discountAmount > 0 ? ` <span style="color: #28a745; font-size: 0.85rem;">(disc: $${formatCurrency(discountAmount)})</span>` : '';
@@ -759,12 +768,30 @@
             }
             
             // Confirm deletion
+            let method = payment.payment_method || 'Unknown';
+            if (method.toLowerCase() === 'check') {
+                method = 'CK';
+            }
+            let reference = payment.payment_reference || 'None';
+            // Filter out Stripe payment intent IDs
+            if (reference.toLowerCase().includes('pi_')) {
+                reference = 'None';
+            }
+            // Format date as M/D/YY
+            let dateStr = 'N/A';
+            if (payment.payment_date?.toDate) {
+                const d = payment.payment_date.toDate();
+                const year = String(d.getFullYear()).slice(-2);
+                const month = d.getMonth() + 1;
+                const day = d.getDate();
+                dateStr = `${month}/${day}/${year}`;
+            }
             const confirmMsg = 
                 `DELETE this payment record?\n\n` +
                 `Amount: $${formatCurrency(payment.amount)}\n` +
-                `Method: ${payment.payment_method || 'Unknown'}\n` +
-                `Date: ${payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A'}\n` +
-                `Reference: ${payment.payment_reference || 'None'}\n` +
+                `Method: ${method}\n` +
+                `Date: ${dateStr}\n` +
+                `Reference: ${reference}\n` +
                 `Recorded by: ${payment.recorded_by || 'Unknown'}\n\n` +
                 `This will PERMANENTLY DELETE the payment record.\n` +
                 `This action cannot be undone.`;
@@ -1007,12 +1034,32 @@
         if (invoice.payments && invoice.payments.length > 0) {
             paymentHistorySection.style.display = 'block';
             paymentHistoryList.innerHTML = invoice.payments.map(p => {
-                const date = p.payment_date?.toDate ? p.payment_date.toDate().toLocaleDateString() : 'N/A';
-                const method = p.payment_method || 'Unknown';
+                // Format date as M/D/YY
+                let date = 'N/A';
+                if (p.payment_date?.toDate) {
+                    const d = p.payment_date.toDate();
+                    const year = String(d.getFullYear()).slice(-2);
+                    const month = d.getMonth() + 1;
+                    const day = d.getDate();
+                    date = `${month}/${day}/${year}`;
+                }
+                
+                // Abbreviate payment method (check -> CK)
+                let method = p.payment_method || 'Unknown';
+                if (method.toLowerCase() === 'check') {
+                    method = 'CK';
+                }
+                
                 const amount = formatCurrency(p.amount || 0);
                 const discount = p.discount_amount || 0;
                 const discountText = discount > 0 ? ` <span style="color: #28a745; font-weight: bold;">(discount: $${formatCurrency(discount)})</span>` : '';
-                const reference = p.payment_reference ? ` (${p.payment_reference})` : '';
+                
+                // Filter out Stripe payment intent IDs
+                let reference = '';
+                if (p.payment_reference && !p.payment_reference.toLowerCase().includes('pi_')) {
+                    reference = ` (${p.payment_reference})`;
+                }
+                
                 const recordedBy = p.recorded_by || 'Unknown';
                 return `<div style="padding: 0.25rem 0; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
                     <span>${date}: <strong>$${amount}</strong>${discountText} via ${method}${reference} <small style="color: #666;">(by ${recordedBy})</small></span>
