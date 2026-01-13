@@ -9,9 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - HandyWorks Billing</title>
-    <link rel="stylesheet" href="../css/style.css?v=20251219v4">
-    <script src="../js/config.js?v=20251219v4"></script>
-    <script src="../js/header-footer.js?v=20251219v4" defer></script>
+    <link rel="stylesheet" href="../css/style.css?v=20251219v6">
+    <script src="../js/config.js?v=20251219v6"></script>
+    <script src="../js/header-footer.js?v=20251219v6" defer></script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -192,8 +192,30 @@
         }
         
         .users-table td {
-            padding: 1rem;
+            padding: 0.5rem 0.75rem;
             border-bottom: 1px solid #eee;
+        }
+        
+        /* Tighter spacing for unpaid section */
+        .users-table tbody tr.unpaid-row td {
+            padding: 0.4rem 0.6rem;
+        }
+        
+        /* Divider between unpaid and paid sections */
+        .users-table tbody tr.section-divider {
+            background: #e9ecef;
+            border-top: 3px solid #008080;
+            border-bottom: 3px solid #008080;
+        }
+        
+        .users-table tbody tr.section-divider td {
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            color: #008080;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .users-table tbody tr:hover {
