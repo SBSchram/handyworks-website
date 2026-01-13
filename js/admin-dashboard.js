@@ -483,9 +483,20 @@
                     const deleteButtonSize = isUnpaid ? '0.9rem' : '1.1rem';
                     const deleteButton = !hasPayments ? `
                         <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${user.acct_num}', event)" 
-                                style="background: transparent; color: #dc3545; border: none; padding: 0.15rem 0.3rem; cursor: pointer; font-size: ${deleteButtonSize}; margin-left: 0.4rem;"
+                                style="background: transparent; color: #dc3545; border: none; padding: 0.15rem 0.3rem; cursor: pointer; font-size: ${deleteButtonSize}; margin-right: 0.5rem;"
                                 title="Delete invoice">✕</button>
                     ` : '';
+                    
+                    // Combine delete button and action button on same line
+                    // X on left, Record Payment on right
+                    let actionsContent = '';
+                    if (deleteButton && actionButton) {
+                        actionsContent = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">${deleteButton}${actionButton}</div>`;
+                    } else if (deleteButton) {
+                        actionsContent = deleteButton;
+                    } else if (actionButton) {
+                        actionsContent = actionButton;
+                    }
                     
                     // Invoice row
                     const invoiceRow = document.createElement('tr');
@@ -502,7 +513,7 @@
                         <td style="text-align: right; padding: ${cellPadding};">$${formatCurrency(billed)}</td>
                         <td style="text-align: center; padding: ${cellPadding}; color: #999; font-size: 1.1rem;">—</td>
                         <td style="text-align: right; padding: ${cellPadding}; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
-                        <td style="padding: ${cellPadding};">${actionButton}${deleteButton}</td>
+                        <td style="padding: ${cellPadding};">${actionsContent}</td>
                     `;
                     usersTableBody.appendChild(invoiceRow);
                     isFirstRow = false;
