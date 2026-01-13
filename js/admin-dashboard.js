@@ -416,12 +416,12 @@
                 if (isUnpaid) {
                     row.className = 'unpaid-row';
                 }
-                const cellPadding = isUnpaid ? '0.4rem 0.6rem' : '0.5rem 0.75rem';
+                const cellPadding = isUnpaid ? '0.4rem 0.4rem' : '0.5rem 0.5rem';
                 const nameEmail = `${fullName}<br><span style="color: #666; font-size: 0.85rem;">${user.email || 'N/A'}</span>`;
                 row.innerHTML = `
-                    <td style="padding: ${cellPadding};">${nameEmail}</td>
+                    <td style="padding: ${cellPadding}; padding-right: 0.4rem;">${nameEmail}</td>
                     <td style="padding: ${cellPadding}; display: none;"></td>
-                    <td style="padding: ${cellPadding}; color: #999;">No invoices</td>
+                    <td style="padding: ${cellPadding}; padding-left: 0.4rem; color: #999;">No invoices</td>
                     <td style="text-align: right; padding: ${cellPadding};">$0.00</td>
                     <td style="text-align: right; padding: ${cellPadding};">$0.00</td>
                     <td style="text-align: right; padding: ${cellPadding};">$0.00</td>
@@ -506,12 +506,12 @@
                     }
                     invoiceRow.style.background = '#f8f9fa';
                     invoiceRow.style.borderTop = isUnpaid ? '1px solid #dee2e6' : '2px solid #dee2e6';
-                    const cellPadding = isUnpaid ? '0.4rem 0.6rem' : '0.5rem 0.75rem';
+                    const cellPadding = isUnpaid ? '0.4rem 0.4rem' : '0.5rem 0.5rem';
                     const nameEmail = isFirstRow ? `${fullName}<br><span style="color: #666; font-size: 0.85rem;">${user.email || 'N/A'}</span>` : '';
                     invoiceRow.innerHTML = `
-                        <td style="padding: ${cellPadding};">${nameEmail}</td>
+                        <td style="padding: ${cellPadding}; padding-right: 0.4rem;">${nameEmail}</td>
                         <td style="padding: ${cellPadding}; display: none;"></td>
-                        <td style="padding: ${cellPadding};"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
+                        <td style="padding: ${cellPadding}; padding-left: 0.4rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
                         <td style="text-align: right; padding: ${cellPadding};">$${formatCurrency(billed)}</td>
                         <td style="text-align: center; padding: ${cellPadding}; color: #999; font-size: 1.1rem;">—</td>
                         <td style="text-align: right; padding: ${cellPadding}; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
@@ -562,12 +562,14 @@
                                         title="Delete payment">✕</button>
                             `;
                             
-                            const cellPadding = isUnpaid ? '0.3rem 0.5rem' : '0.4rem 0.6rem';
+                            const cellPadding = isUnpaid ? '0.3rem 0.4rem' : '0.4rem 0.5rem';
+                            // Format payment info more compactly to prevent wrapping
+                            const paymentInfo = `${paymentDate} ${method}${reference}${discountText}`;
                             paymentRow.innerHTML = `
-                                <td style="padding: ${cellPadding};"></td>
+                                <td style="padding: ${cellPadding}; padding-right: 0.4rem;"></td>
                                 <td style="padding: ${cellPadding}; display: none;"></td>
-                                <td style="padding: ${cellPadding}; padding-left: 1.5rem; color: #666; font-size: 0.85rem; white-space: nowrap;">
-                                    ${paymentDate} ${method}${reference}${discountText}
+                                <td style="padding: ${cellPadding}; padding-left: 1.2rem; color: #666; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${paymentInfo}">
+                                    ${paymentInfo}
                                 </td>
                                 <td style="text-align: right; padding: ${cellPadding}; color: #999; font-size: 0.9rem;">—</td>
                                 <td style="text-align: right; padding: ${cellPadding}; color: #28a745; font-size: 0.85rem;">$${formatCurrency(paymentAmount)}</td>
