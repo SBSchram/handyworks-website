@@ -417,14 +417,15 @@
                     row.className = 'unpaid-row';
                 }
                 const cellPadding = isUnpaid ? '0.4rem 0.4rem' : '0.5rem 0.5rem';
-                const nameEmail = `${fullName}<br><span style="color: #666; font-size: 0.85rem;">${user.email || 'N/A'}</span>`;
+                const nameEmail = `${fullName} <span style="color: #666; font-size: 0.85rem;">(${user.email || 'N/A'})</span>`;
+                const amountPadding = '0.25rem 0.5rem';
                 row.innerHTML = `
                     <td style="padding: ${cellPadding}; padding-right: 0.4rem;">${nameEmail}</td>
                     <td style="padding: ${cellPadding}; display: none;"></td>
                     <td style="padding: ${cellPadding}; padding-left: 0.4rem; color: #999;">No invoices</td>
-                    <td style="text-align: right; padding: ${cellPadding};">$0.00</td>
-                    <td style="text-align: right; padding: ${cellPadding};">$0.00</td>
-                    <td style="text-align: right; padding: ${cellPadding};">$0.00</td>
+                    <td style="text-align: right; padding: ${amountPadding};">$0.00</td>
+                    <td style="text-align: right; padding: ${amountPadding};">$0.00</td>
+                    <td style="text-align: right; padding: ${amountPadding};">$0.00</td>
                     <td style="padding: ${cellPadding};">
                         <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" 
                                 onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
@@ -507,14 +508,15 @@
                     invoiceRow.style.background = '#f8f9fa';
                     invoiceRow.style.borderTop = isUnpaid ? '1px solid #dee2e6' : '2px solid #dee2e6';
                     const cellPadding = isUnpaid ? '0.4rem 0.4rem' : '0.5rem 0.5rem';
-                    const nameEmail = isFirstRow ? `${fullName}<br><span style="color: #666; font-size: 0.85rem;">${user.email || 'N/A'}</span>` : '';
+                    const nameEmail = isFirstRow ? `${fullName} <span style="color: #666; font-size: 0.85rem;">(${user.email || 'N/A'})</span>` : '';
+                    const amountPadding = '0.25rem 0.5rem';
                     invoiceRow.innerHTML = `
                         <td style="padding: ${cellPadding}; padding-right: 0.4rem;">${nameEmail}</td>
                         <td style="padding: ${cellPadding}; display: none;"></td>
                         <td style="padding: ${cellPadding}; padding-left: 0.4rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
-                        <td style="text-align: right; padding: ${cellPadding};">$${formatCurrency(billed)}</td>
-                        <td style="text-align: center; padding: ${cellPadding}; color: #999; font-size: 1.1rem;">—</td>
-                        <td style="text-align: right; padding: ${cellPadding}; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
+                        <td style="text-align: right; padding: ${amountPadding};">$${formatCurrency(billed)}</td>
+                        <td style="text-align: center; padding: ${amountPadding}; color: #999; font-size: 1.1rem;">—</td>
+                        <td style="text-align: right; padding: ${amountPadding}; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
                         <td style="padding: ${cellPadding};">${actionsContent}</td>
                     `;
                     usersTableBody.appendChild(invoiceRow);
@@ -563,6 +565,7 @@
                             `;
                             
                             const cellPadding = isUnpaid ? '0.3rem 0.4rem' : '0.4rem 0.5rem';
+                            const amountPadding = '0.25rem 0.5rem';
                             // Format payment info more compactly to prevent wrapping
                             const paymentInfo = `${paymentDate} ${method}${reference}${discountText}`;
                             paymentRow.innerHTML = `
@@ -571,9 +574,9 @@
                                 <td style="padding: ${cellPadding}; padding-left: 1.2rem; color: #666; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${paymentInfo}">
                                     ${paymentInfo}
                                 </td>
-                                <td style="text-align: right; padding: ${cellPadding}; color: #999; font-size: 0.9rem;">—</td>
-                                <td style="text-align: right; padding: ${cellPadding}; color: #28a745; font-size: 0.85rem;">$${formatCurrency(paymentAmount)}</td>
-                                <td style="text-align: right; padding: ${cellPadding}; font-weight: bold; color: ${balanceColor}; font-size: 0.85rem;">$${formatCurrency(runningBalance)}</td>
+                                <td style="text-align: right; padding: ${amountPadding}; color: #999; font-size: 0.9rem;">—</td>
+                                <td style="text-align: right; padding: ${amountPadding}; color: #28a745; font-size: 0.85rem;">$${formatCurrency(paymentAmount)}</td>
+                                <td style="text-align: right; padding: ${amountPadding}; font-weight: bold; color: ${balanceColor}; font-size: 0.85rem;">$${formatCurrency(runningBalance)}</td>
                                 <td style="padding: ${cellPadding};"><span style="font-size: 0.85rem;">${deletePaymentButton}</span></td>
                             `;
                             usersTableBody.appendChild(paymentRow);

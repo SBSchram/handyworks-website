@@ -9,9 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - HandyWorks Billing</title>
-    <link rel="stylesheet" href="../css/style.css?v=20251219v10">
-    <script src="../js/config.js?v=20251219v10"></script>
-    <script src="../js/header-footer.js?v=20251219v10" defer></script>
+    <link rel="stylesheet" href="../css/style.css?v=20251219v11">
+    <script src="../js/config.js?v=20251219v11"></script>
+    <script src="../js/header-footer.js?v=20251219v11" defer></script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -191,11 +191,11 @@
             letter-spacing: 0.5px;
         }
         
-        /* Name column - wider to accommodate name and email */
+        /* Name column - accommodate name and email on one line */
         .users-table th:nth-child(1),
         .users-table td:nth-child(1) {
-            width: 22%;
-            min-width: 180px;
+            width: 25%;
+            min-width: 200px;
         }
         
         /* Email column - hide it, we'll combine with name */
@@ -207,19 +207,21 @@
         /* Date column - wider for payment info */
         .users-table th:nth-child(3),
         .users-table td:nth-child(3) {
-            width: 140px;
-            min-width: 140px;
+            width: 180px;
+            min-width: 180px;
         }
         
-        /* Billed, Paid, Owed columns - wider */
+        /* Billed, Paid, Owed columns - tighter, closer to right */
         .users-table th:nth-child(4),
         .users-table td:nth-child(4),
         .users-table th:nth-child(5),
         .users-table td:nth-child(5),
         .users-table th:nth-child(6),
         .users-table td:nth-child(6) {
-            width: 115px;
-            min-width: 115px;
+            width: 85px;
+            min-width: 85px;
+            padding-left: 0.25rem;
+            padding-right: 0.5rem;
         }
         
         /* Actions column styling for buttons on same line */
@@ -236,7 +238,7 @@
         
         /* Allow wrapping only in name/email column */
         .users-table tbody tr td:nth-child(1) {
-            white-space: normal;
+            white-space: nowrap;
         }
         
         .users-table td {
@@ -1005,7 +1007,7 @@
         <!-- Footer content will be inserted by header-footer.js -->
     </footer>
 
-    <script src="../js/admin-dashboard.js?v=20251219v10"></script>
+    <script src="../js/admin-dashboard.js?v=20251219v11"></script>
 </body>
 </html>
 
