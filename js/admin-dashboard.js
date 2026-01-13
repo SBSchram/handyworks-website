@@ -575,13 +575,14 @@
                             
                             const cellPadding = isUnpaid ? '0.3rem 0.4rem' : '0.4rem 0.5rem';
                             const amountPadding = '0.25rem 0.5rem';
-                            // Format payment info more compactly to prevent wrapping
-                            const paymentInfo = `${paymentDate} ${method}${reference}${discountText}`;
+                            // Format payment info - plain text for title, HTML for display
+                            const paymentInfoPlain = `${paymentDate} ${method}${reference}${discountAmount > 0 ? ` (disc: $${formatCurrency(discountAmount)})` : ''}`;
+                            const paymentInfoDisplay = `${paymentDate} ${method}${reference}${discountText}`;
                             paymentRow.innerHTML = `
                                 <td style="padding: ${cellPadding}; padding-right: 0.4rem;"></td>
                                 <td style="padding: ${cellPadding}; display: none;"></td>
-                                <td style="padding: ${cellPadding}; padding-left: 1.2rem; color: #666; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${paymentInfo}">
-                                    ${paymentInfo}
+                                <td style="padding: ${cellPadding}; padding-left: 1.2rem; color: #666; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${paymentInfoPlain}">
+                                    ${paymentInfoDisplay}
                                 </td>
                                 <td style="text-align: right; padding: ${amountPadding}; color: #999; font-size: 0.9rem;">—</td>
                                 <td style="text-align: right; padding: ${amountPadding}; color: #28a745; font-size: 0.85rem;">$${formatCurrency(paymentAmount)}</td>
