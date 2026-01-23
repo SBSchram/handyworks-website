@@ -9,9 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Admin Dashboard - HandyWorks Billing</title>
-    <link rel="stylesheet" href="../css/style.css?v=20251219v4">
-    <script src="../js/config.js?v=20251219v4"></script>
-    <script src="../js/header-footer.js?v=20251219v4" defer></script>
+    <link rel="stylesheet" href="../css/style.css?v=20251219v14">
+    <script src="../js/config.js?v=20251219v14"></script>
+    <script src="../js/header-footer.js?v=20251219v14" defer></script>
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -191,9 +191,98 @@
             letter-spacing: 0.5px;
         }
         
+        /* Name column - accommodate name and email on one line */
+        .users-table th:nth-child(1),
+        .users-table td:nth-child(1) {
+            width: 25%;
+            min-width: 200px;
+        }
+        
+        /* Email column - hide it, we'll combine with name */
+        .users-table th:nth-child(2),
+        .users-table td:nth-child(2) {
+            display: none;
+        }
+        
+        /* Date column - wider for payment info */
+        .users-table th:nth-child(3),
+        .users-table td:nth-child(3) {
+            width: 180px;
+            min-width: 180px;
+        }
+        
+        /* Billed, Paid, Owed columns - tighter, closer to right */
+        .users-table th:nth-child(4),
+        .users-table td:nth-child(4),
+        .users-table th:nth-child(5),
+        .users-table td:nth-child(5),
+        .users-table th:nth-child(6),
+        .users-table td:nth-child(6) {
+            width: 85px;
+            min-width: 85px;
+            padding-left: 0.25rem;
+            padding-right: 0.5rem;
+        }
+        
+        /* Actions column styling for buttons on same line */
+        .users-table td:last-child {
+            white-space: nowrap;
+            width: auto;
+            min-width: 180px;
+        }
+        
+        /* Prevent wrapping in all columns except name/email */
+        .users-table tbody tr td {
+            white-space: nowrap;
+        }
+        
+        /* Allow wrapping only in name/email column */
+        .users-table tbody tr td:nth-child(1) {
+            white-space: nowrap;
+        }
+        
         .users-table td {
-            padding: 1rem;
+            padding: 0.5rem 0.5rem;
             border-bottom: 1px solid #eee;
+        }
+        
+        /* Reduce padding between name and date columns */
+        .users-table td:nth-child(1) {
+            padding-right: 0.4rem;
+        }
+        
+        .users-table td:nth-child(3) {
+            padding-left: 0.4rem;
+        }
+        
+        /* Tighter spacing for unpaid section */
+        .users-table tbody tr.unpaid-row td {
+            padding: 0.4rem 0.4rem;
+        }
+        
+        .users-table tbody tr.unpaid-row td:nth-child(1) {
+            padding-right: 0.4rem;
+        }
+        
+        .users-table tbody tr.unpaid-row td:nth-child(3) {
+            padding-left: 0.4rem;
+        }
+        
+        /* Divider between unpaid and paid sections */
+        .users-table tbody tr.section-divider {
+            background: #e9ecef;
+            border-top: 3px solid #008080;
+            border-bottom: 3px solid #008080;
+        }
+        
+        .users-table tbody tr.section-divider td {
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            color: #008080;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .users-table tbody tr:hover {
@@ -528,19 +617,19 @@
                     <div class="value" id="totalUsers">0</div>
                 </div>
                 <div class="stat-card">
-                    <h3 id="noInvoiceLabel">No Invoice</h3>
+                    <h3>No Invoice (2026)</h3>
                     <div class="value" id="noInvoiceCount" style="color: #666;">0</div>
                 </div>
                 <div class="stat-card pending">
-                    <h3 id="pendingLabel">Pending</h3>
+                    <h3>Pending (2026)</h3>
                     <div class="value" id="pendingCount">0</div>
                 </div>
                 <div class="stat-card paid">
-                    <h3 id="paidLabel">Paid</h3>
+                    <h3>Paid (2026)</h3>
                     <div class="value" id="paidCount">0</div>
                 </div>
                 <div class="stat-card overdue">
-                    <h3 id="overdueLabel">Overdue</h3>
+                    <h3>Overdue (2026)</h3>
                     <div class="value" id="overdueCount">0</div>
                 </div>
             </div>
@@ -572,7 +661,7 @@
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Email</th>
+                            <th style="display: none;">Email</th>
                             <th>Date</th>
                             <th style="text-align: right;">Billed</th>
                             <th style="text-align: right;">Paid</th>
@@ -918,7 +1007,7 @@
         <!-- Footer content will be inserted by header-footer.js -->
     </footer>
 
-    <script src="../js/admin-dashboard.js?v=20250129v5"></script>
+    <script src="../js/admin-dashboard.js?v=20251219143000"></script>
 </body>
 </html>
 

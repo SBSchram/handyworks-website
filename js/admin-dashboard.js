@@ -190,22 +190,75 @@
                         paymentStatus = 'pending';
                     }
                     
-                    return {
+                    // Create invoice object with calculated values
+                    // IMPORTANT: paymentStatus must be based on amountOwed, not stored payment_status
+                    const invoiceData = {
                         ...invoice,
                         payments: payments,
                         totalPaid: totalPaid,
                         totalDiscounts: totalDiscounts,
                         amountOwed: amountOwed,
-                        paymentStatus: paymentStatus
+                        paymentStatus: paymentStatus // Always use calculated status
                     };
+                    
+                    // Override any stored payment_status with calculated value
+                    // This ensures amountOwed is the source of truth
+                    if (amountOwed > 0 && invoice.payment_status === 'paid') {
+                        // If amountOwed > 0, it cannot be paid - force recalculation
+                        console.warn(`Invoice ${invoice.invoice_id} has payment_status='paid' but amountOwed=$${amountOwed}. Correcting to ${paymentStatus}.`);
+                    }
+                    
+                    return invoiceData;
                 });
                 
                 // Sort invoices by year (newest first)
                 user.invoices.sort((a, b) => (b.year || 0) - (a.year || 0));
                 
-                // Use the most recent invoice for payment status (regardless of year)
-                user.invoice2026 = user.invoices.length > 0 ? user.invoices[0] : null;
-                user.paymentStatus = user.invoice2026 ? user.invoice2026.paymentStatus : 'no-invoice';
+                // Calculate current billing year (December to November period)
+                // Billing period runs Dec YYYY to Nov YYYY+1, so billing year = year that contains November
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+                // If we're in December, billing year = next year. Otherwise, billing year = current year
+                const targetYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+                
+                // Find invoice for current billing year
+                user.invoice2026 = user.invoices.find(inv => inv.year === targetYear) || null;
+                
+                // Determine payment status: ALWAYS prioritize amountOwed over stored payment_status
+                // Find any invoice with amountOwed > 0 (this is the source of truth)
+                const unpaidInvoice = user.invoices.find(inv => (inv.amountOwed || 0) > 0);
+                
+                if (unpaidInvoice) {
+                    // User has an unpaid invoice - use calculated status (never use stored payment_status)
+                    // Recalculate status based on amountOwed to ensure accuracy
+                    if (unpaidInvoice.amountOwed > 0) {
+                        if (unpaidInvoice.due_date) {
+                            const dueDate = unpaidInvoice.due_date.toDate ? unpaidInvoice.due_date.toDate() : new Date(unpaidInvoice.due_date);
+                            if (new Date() > dueDate) {
+                                user.paymentStatus = 'overdue';
+                            } else {
+                                user.paymentStatus = 'pending';
+                            }
+                        } else {
+                            user.paymentStatus = 'pending';
+                        }
+                    } else {
+                        user.paymentStatus = unpaidInvoice.paymentStatus;
+                    }
+                } else if (user.invoice2026) {
+                    // No unpaid invoices, check if current billing year invoice is paid
+                    const totalPaid = (user.invoice2026.totalPaid || 0) + (user.invoice2026.totalDiscounts || 0);
+                    const invoiceAmount = Number(user.invoice2026.amount) || 0;
+                    if (totalPaid >= invoiceAmount && invoiceAmount > 0) {
+                        user.paymentStatus = 'paid';
+                    } else {
+                        user.paymentStatus = user.invoice2026.paymentStatus || 'pending';
+                    }
+                } else {
+                    // No invoice for current billing year
+                    user.paymentStatus = 'no-invoice';
+                }
             });
             
             // Sort users: unpaid first, then paid; within each group, sort by name
@@ -326,7 +379,31 @@
         usersTable.style.display = 'table';
         noDataMessage.style.display = 'none';
         
-        filteredUsers.forEach(user => {
+        // Track if we've shown unpaid users and need to add divider
+        let hasShownUnpaid = false;
+        let hasAddedDivider = false;
+        
+        filteredUsers.forEach((user, userIndex) => {
+            // Determine if this user is unpaid
+            const unpaidStatuses = ['overdue', 'pending', 'no-invoice'];
+            const isUnpaid = unpaidStatuses.includes(user.paymentStatus);
+            
+            // Add divider when transitioning from unpaid to paid
+            if (hasShownUnpaid && !isUnpaid && !hasAddedDivider) {
+                const dividerRow = document.createElement('tr');
+                dividerRow.className = 'section-divider';
+                dividerRow.innerHTML = `
+                    <td colspan="7" style="padding: 0.75rem; text-align: center; font-weight: 600; color: #008080; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; background: #e9ecef; border-top: 3px solid #008080; border-bottom: 3px solid #008080;">
+                        ──── Paid Clients ────
+                    </td>
+                `;
+                usersTableBody.appendChild(dividerRow);
+                hasAddedDivider = true;
+            }
+            
+            if (isUnpaid) {
+                hasShownUnpaid = true;
+            }
             const fullName = formatCustomerName(user);
             const activeInvoices = user.invoices?.filter(inv => inv.payment_status !== 'cancelled') || [];
             
@@ -336,15 +413,21 @@
             if (activeInvoices.length === 0) {
                 // No invoices - show one row with Generate Invoice button
                 const row = document.createElement('tr');
+                if (isUnpaid) {
+                    row.className = 'unpaid-row';
+                }
+                const cellPadding = isUnpaid ? '0.4rem 0.4rem' : '0.5rem 0.5rem';
+                const nameEmail = `${fullName} <span style="color: #666; font-size: 0.85rem;">(${user.email || 'N/A'})</span>`;
+                const amountPadding = '0.25rem 0.5rem';
                 row.innerHTML = `
-                    <td style="padding: 0.75rem;">${fullName}</td>
-                    <td style="padding: 0.75rem;">${user.email || 'N/A'}</td>
-                    <td style="padding: 0.75rem; color: #999;">No invoices</td>
-                    <td style="text-align: right; padding: 0.75rem;">$0.00</td>
-                    <td style="text-align: right; padding: 0.75rem;">$0.00</td>
-                    <td style="text-align: right; padding: 0.75rem;">$0.00</td>
-                    <td style="padding: 0.75rem;">
-                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" 
+                    <td style="padding: ${cellPadding}; padding-right: 0.4rem;">${nameEmail}</td>
+                    <td style="padding: ${cellPadding}; display: none;"></td>
+                    <td style="padding: ${cellPadding}; padding-left: 0.4rem; color: #999;">No invoices</td>
+                    <td style="text-align: right; padding: ${amountPadding};">$0.00</td>
+                    <td style="text-align: right; padding: ${amountPadding};">$0.00</td>
+                    <td style="text-align: right; padding: ${amountPadding};">$0.00</td>
+                    <td style="padding: ${cellPadding};">
+                        <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" 
                                 onclick="generateBillForUser('${user.acct_num}', '${fullName}')">
                             Generate Invoice
                         </button>
@@ -358,14 +441,14 @@
                 activeInvoices.forEach((invoice) => {
                     const billed = invoice.amount || 0;
                     
-                    // Format invoice date as YYYY-MM-DD
+                    // Format invoice date as M/D/YY
                     let invoiceDate = 'N/A';
                     if (invoice.created_at?.toDate) {
                         const date = invoice.created_at.toDate();
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        invoiceDate = `${year}-${month}-${day}`;
+                        const year = String(date.getFullYear()).slice(-2); // Last 2 digits
+                        const month = date.getMonth() + 1; // 1-12
+                        const day = date.getDate();
+                        invoiceDate = `${month}/${day}/${year}`;
                     }
                     
                     // Invoice row shows: billed amount, blank paid, initial owed
@@ -378,8 +461,10 @@
                     if (totalOwed > 0) {
                         // Check if we should show "Generate Reminder" button (mid-January or later)
                         const shouldShowReminder = isMidJanuaryOrLater();
+                        const buttonPadding = isUnpaid ? '0.3rem 0.6rem' : '0.4rem 0.8rem';
+                        const buttonFontSize = isUnpaid ? '0.75rem' : '0.85rem';
                         const reminderButton = shouldShowReminder ? `
-                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #ffc107; color: #333; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.5rem;" 
+                            <button class="btn" style="padding: ${buttonPadding}; font-size: ${buttonFontSize}; background: #ffc107; color: #333; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.4rem;" 
                                     onclick="generateReminderInvoice('${invoice.id}', '${user.acct_num}', '${invoice.invoice_id}', '${invoice.year}')"
                                     title="Generate reminder invoice email">
                                 Generate Reminder
@@ -388,7 +473,7 @@
                         
                         actionButton = `
                             ${reminderButton}
-                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
+                            <button class="btn" style="padding: ${buttonPadding}; font-size: ${buttonFontSize}; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
                                     onclick="recordPaymentForInvoice('${invoice.id}', '${user.acct_num}')">
                                 Record Payment
                             </button>
@@ -397,24 +482,42 @@
                     
                     // Delete button (X) - only show if no payments exist
                     const hasPayments = invoice.payments && invoice.payments.length > 0;
+                    const deleteButtonSize = isUnpaid ? '0.9rem' : '1.1rem';
                     const deleteButton = !hasPayments ? `
                         <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${user.acct_num}', event)" 
-                                style="background: transparent; color: #dc3545; border: none; padding: 0.2rem 0.4rem; cursor: pointer; font-size: 1.1rem; margin-left: 0.5rem;"
+                                style="background: transparent; color: #dc3545; border: none; padding: 0.15rem 0.3rem; cursor: pointer; font-size: ${deleteButtonSize}; margin-right: 0.5rem;"
                                 title="Delete invoice">✕</button>
                     ` : '';
                     
+                    // Combine delete button and action button on same line
+                    // X on left, Record Payment on right
+                    let actionsContent = '';
+                    if (deleteButton && actionButton) {
+                        actionsContent = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">${deleteButton}${actionButton}</div>`;
+                    } else if (deleteButton) {
+                        actionsContent = deleteButton;
+                    } else if (actionButton) {
+                        actionsContent = actionButton;
+                    }
+                    
                     // Invoice row
                     const invoiceRow = document.createElement('tr');
+                    if (isUnpaid) {
+                        invoiceRow.className = 'unpaid-row';
+                    }
                     invoiceRow.style.background = '#f8f9fa';
-                    invoiceRow.style.borderTop = '2px solid #dee2e6';
+                    invoiceRow.style.borderTop = isUnpaid ? '1px solid #dee2e6' : '2px solid #dee2e6';
+                    const cellPadding = isUnpaid ? '0.4rem 0.4rem' : '0.5rem 0.5rem';
+                    const nameEmail = isFirstRow ? `${fullName} <span style="color: #666; font-size: 0.85rem;">(${user.email || 'N/A'})</span>` : '';
+                    const amountPadding = '0.25rem 0.5rem';
                     invoiceRow.innerHTML = `
-                        <td style="padding: 0.75rem;">${isFirstRow ? fullName : ''}</td>
-                        <td style="padding: 0.75rem;">${isFirstRow ? (user.email || 'N/A') : ''}</td>
-                        <td style="padding: 0.75rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
-                        <td style="text-align: right; padding: 0.75rem;">$${formatCurrency(billed)}</td>
-                        <td style="text-align: center; padding: 0.75rem; color: #999; font-size: 1.1rem;">—</td>
-                        <td style="text-align: right; padding: 0.75rem; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
-                        <td style="padding: 0.75rem;">${actionButton}${deleteButton}</td>
+                        <td style="padding: ${cellPadding}; padding-right: 0.4rem;">${nameEmail}</td>
+                        <td style="padding: ${cellPadding}; display: none;"></td>
+                        <td style="padding: ${cellPadding}; padding-left: 0.4rem;"><span style="color: ${dateColor}; font-weight: 500;">${invoiceDate}</span></td>
+                        <td style="text-align: right; padding: ${amountPadding};">$${formatCurrency(billed)}</td>
+                        <td style="text-align: center; padding: ${amountPadding}; color: #999; font-size: 1.1rem;">—</td>
+                        <td style="text-align: right; padding: ${amountPadding}; font-weight: bold; color: ${dateColor};">$${formatCurrency(runningBalance)}</td>
+                        <td style="padding: ${cellPadding};">${actionsContent}</td>
                     `;
                     usersTableBody.appendChild(invoiceRow);
                     isFirstRow = false;
@@ -430,20 +533,32 @@
                         
                         sortedPayments.forEach(payment => {
                             const paymentRow = document.createElement('tr');
+                            if (isUnpaid) {
+                                paymentRow.className = 'unpaid-row';
+                            }
                             paymentRow.style.background = '#ffffff';
                             
-                            // Format payment date as YYYY-MM-DD
+                            // Format payment date as M/D/YY
                             let paymentDate = 'N/A';
                             if (payment.payment_date?.toDate) {
                                 const date = payment.payment_date.toDate();
-                                const year = date.getFullYear();
-                                const month = String(date.getMonth() + 1).padStart(2, '0');
-                                const day = String(date.getDate()).padStart(2, '0');
-                                paymentDate = `${year}-${month}-${day}`;
+                                const year = String(date.getFullYear()).slice(-2); // Last 2 digits
+                                const month = date.getMonth() + 1; // 1-12
+                                const day = date.getDate();
+                                paymentDate = `${month}/${day}/${year}`;
                             }
                             
-                            const method = payment.payment_method || 'Unknown';
-                            const reference = payment.payment_reference ? ` #${payment.payment_reference}` : '';
+                            // Abbreviate payment method (check -> CK)
+                            let method = payment.payment_method || 'Unknown';
+                            if (method.toLowerCase() === 'check') {
+                                method = 'CK';
+                            }
+                            
+                            // Filter out Stripe payment intent IDs (they start with "pi_")
+                            let reference = '';
+                            if (payment.payment_reference && !payment.payment_reference.toLowerCase().includes('pi_')) {
+                                reference = ` #${payment.payment_reference}`;
+                            }
                             const paymentAmount = payment.amount || 0;
                             const discountAmount = payment.discount_amount || 0;
                             const discountText = discountAmount > 0 ? ` <span style="color: #28a745; font-size: 0.85rem;">(disc: $${formatCurrency(discountAmount)})</span>` : '';
@@ -454,20 +569,25 @@
                             
                             const deletePaymentButton = `
                                 <button onclick="deletePayment('${payment.id}', '${invoice.id}', event)" 
-                                        style="background: transparent; color: #dc3545; border: none; padding: 0.2rem 0.4rem; cursor: pointer; font-size: 1rem;"
+                                        style="background: transparent; color: #dc3545; border: none; padding: 0.2rem 0.4rem; cursor: pointer; font-size: 0.9rem;"
                                         title="Delete payment">✕</button>
                             `;
                             
+                            const cellPadding = isUnpaid ? '0.3rem 0.4rem' : '0.4rem 0.5rem';
+                            const amountPadding = '0.25rem 0.5rem';
+                            // Format payment info - plain text for title, HTML for display
+                            const paymentInfoPlain = `${paymentDate} ${method}${reference}${discountAmount > 0 ? ` (disc: $${formatCurrency(discountAmount)})` : ''}`;
+                            const paymentInfoDisplay = `${paymentDate} ${method}${reference}${discountText}`;
                             paymentRow.innerHTML = `
-                                <td style="padding: 0.5rem;"></td>
-                                <td style="padding: 0.5rem;"></td>
-                                <td style="padding: 0.5rem 0.5rem 0.5rem 2rem; color: #666; font-size: 0.9rem;">
-                                    ${paymentDate} ${method}${reference}${discountText}
+                                <td style="padding: ${cellPadding}; padding-right: 0.4rem;"></td>
+                                <td style="padding: ${cellPadding}; display: none;"></td>
+                                <td style="padding: ${cellPadding}; padding-left: 1.2rem; color: #666; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${paymentInfoPlain}">
+                                    ${paymentInfoDisplay}
                                 </td>
-                                <td style="text-align: right; padding: 0.5rem; color: #999; font-size: 1rem;">—</td>
-                                <td style="text-align: right; padding: 0.5rem; color: #28a745; font-size: 0.9rem;">$${formatCurrency(paymentAmount)}</td>
-                                <td style="text-align: right; padding: 0.5rem; font-weight: bold; color: ${balanceColor}; font-size: 0.9rem;">$${formatCurrency(runningBalance)}</td>
-                                <td style="padding: 0.5rem;">${deletePaymentButton}</td>
+                                <td style="text-align: right; padding: ${amountPadding}; color: #999; font-size: 0.9rem;">—</td>
+                                <td style="text-align: right; padding: ${amountPadding}; color: #28a745; font-size: 0.85rem;">$${formatCurrency(paymentAmount)}</td>
+                                <td style="text-align: right; padding: ${amountPadding}; font-weight: bold; color: ${balanceColor}; font-size: 0.85rem;">$${formatCurrency(runningBalance)}</td>
+                                <td style="padding: ${cellPadding};"><span style="font-size: 0.85rem;">${deletePaymentButton}</span></td>
                             `;
                             usersTableBody.appendChild(paymentRow);
                         });
@@ -541,17 +661,6 @@
     // Update statistics
     function updateStats() {
         totalUsersEl.textContent = allUsers.length;
-        
-        // Update labels (no year specified - shows all invoices)
-        const noInvoiceLabel = document.getElementById('noInvoiceLabel');
-        const pendingLabel = document.getElementById('pendingLabel');
-        const paidLabel = document.getElementById('paidLabel');
-        const overdueLabel = document.getElementById('overdueLabel');
-        
-        if (noInvoiceLabel) noInvoiceLabel.textContent = 'No Invoice';
-        if (pendingLabel) pendingLabel.textContent = 'Pending';
-        if (paidLabel) paidLabel.textContent = 'Paid';
-        if (overdueLabel) overdueLabel.textContent = 'Overdue';
         
         const noInvoice = allUsers.filter(u => u.paymentStatus === 'no-invoice').length;
         const pending = allUsers.filter(u => u.paymentStatus === 'pending').length;
@@ -660,12 +769,30 @@
             }
             
             // Confirm deletion
+            let method = payment.payment_method || 'Unknown';
+            if (method.toLowerCase() === 'check') {
+                method = 'CK';
+            }
+            let reference = payment.payment_reference || 'None';
+            // Filter out Stripe payment intent IDs
+            if (reference.toLowerCase().includes('pi_')) {
+                reference = 'None';
+            }
+            // Format date as M/D/YY
+            let dateStr = 'N/A';
+            if (payment.payment_date?.toDate) {
+                const d = payment.payment_date.toDate();
+                const year = String(d.getFullYear()).slice(-2);
+                const month = d.getMonth() + 1;
+                const day = d.getDate();
+                dateStr = `${month}/${day}/${year}`;
+            }
             const confirmMsg = 
                 `DELETE this payment record?\n\n` +
                 `Amount: $${formatCurrency(payment.amount)}\n` +
-                `Method: ${payment.payment_method || 'Unknown'}\n` +
-                `Date: ${payment.payment_date?.toDate ? payment.payment_date.toDate().toLocaleDateString() : 'N/A'}\n` +
-                `Reference: ${payment.payment_reference || 'None'}\n` +
+                `Method: ${method}\n` +
+                `Date: ${dateStr}\n` +
+                `Reference: ${reference}\n` +
                 `Recorded by: ${payment.recorded_by || 'Unknown'}\n\n` +
                 `This will PERMANENTLY DELETE the payment record.\n` +
                 `This action cannot be undone.`;
@@ -908,12 +1035,32 @@
         if (invoice.payments && invoice.payments.length > 0) {
             paymentHistorySection.style.display = 'block';
             paymentHistoryList.innerHTML = invoice.payments.map(p => {
-                const date = p.payment_date?.toDate ? p.payment_date.toDate().toLocaleDateString() : 'N/A';
-                const method = p.payment_method || 'Unknown';
+                // Format date as M/D/YY
+                let date = 'N/A';
+                if (p.payment_date?.toDate) {
+                    const d = p.payment_date.toDate();
+                    const year = String(d.getFullYear()).slice(-2);
+                    const month = d.getMonth() + 1;
+                    const day = d.getDate();
+                    date = `${month}/${day}/${year}`;
+                }
+                
+                // Abbreviate payment method (check -> CK)
+                let method = p.payment_method || 'Unknown';
+                if (method.toLowerCase() === 'check') {
+                    method = 'CK';
+                }
+                
                 const amount = formatCurrency(p.amount || 0);
                 const discount = p.discount_amount || 0;
                 const discountText = discount > 0 ? ` <span style="color: #28a745; font-weight: bold;">(discount: $${formatCurrency(discount)})</span>` : '';
-                const reference = p.payment_reference ? ` (${p.payment_reference})` : '';
+                
+                // Filter out Stripe payment intent IDs
+                let reference = '';
+                if (p.payment_reference && !p.payment_reference.toLowerCase().includes('pi_')) {
+                    reference = ` (${p.payment_reference})`;
+                }
+                
                 const recordedBy = p.recorded_by || 'Unknown';
                 return `<div style="padding: 0.25rem 0; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
                     <span>${date}: <strong>$${amount}</strong>${discountText} via ${method}${reference} <small style="color: #666;">(by ${recordedBy})</small></span>
