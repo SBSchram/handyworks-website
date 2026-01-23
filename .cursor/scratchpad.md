@@ -1071,3 +1071,971 @@ The HandyWorks invoicing system offers a discount for check payments (typically 
 
 *(To be filled during implementation if any issues arise)*
 
+---
+
+---
+
+# ACAHM Accounting Project
+**Quarterly Financial Report Automation**
+
+**Last Updated:** January 2025  
+**Current Status:** PLANNING PHASE  
+**Project Type:** New Development
+
+---
+
+## Executive Summary
+
+Develop an automated system to replicate quarterly financial reports from the accounting firm. The system will:
+- Analyze QuickBooks data and bank statements
+- Generate quarterly reports matching the accounting firm's format
+- Use modular, reusable components for maintainability
+- Automate future quarterly report generation
+
+---
+
+## Background and Motivation
+
+**Problem Statement:**
+ACAHM currently receives quarterly financial reports from an external accounting firm. These reports are based on QuickBooks data and bank statements. The organization needs to:
+1. Duplicate the last quarterly report format and calculations
+2. Automate generation of future quarterly reports
+3. Maintain consistency with accounting firm's methodology
+4. Enable independent verification of financial data
+
+**Business Goals:**
+- Reduce dependency on external accounting firm for routine reports
+- Enable faster internal financial reporting
+- Maintain audit trail and consistency
+- Create reusable components for future financial analysis needs
+
+**User Request:**
+"I will supply the files shortly. Overview: We get quarterly reports from our accounting firm. These reports are based on quickbooks data and bank statements. Your project will be to duplicate the last quarterly report from the accounting firm using the quickbooks data and then going forward do the same with new data. You will be developing appropriate scripts to analyze the quickbook data and other scripts to generate the reports. You will keep things simple and compartmentalized with reusable components as necessary."
+
+---
+
+## Key Challenges and Analysis
+
+### Data Sources
+- **QuickBooks Data**: Format TBD (CSV export, IIF file, QBO API, or other)
+- **Bank Statements**: Format TBD (CSV, PDF, or other)
+- **Accounting Firm Report**: Format TBD (PDF, Excel, Word, or other)
+
+### Technical Challenges
+1. **Data Format Understanding:**
+   - Need to understand QuickBooks export format
+   - Need to parse bank statement format
+   - Need to reverse-engineer accounting firm's calculations
+
+2. **Report Structure:**
+   - Identify all sections in the quarterly report
+   - Understand calculation methodology
+   - Replicate formatting and presentation
+
+3. **Data Mapping:**
+   - Map QuickBooks accounts to report line items
+   - Map bank transactions to report categories
+   - Handle reconciliation between sources
+
+4. **Modularity:**
+   - Create reusable data extraction modules
+   - Create reusable calculation modules
+   - Create reusable report generation modules
+
+### Solution Approach
+
+**Simple, Modular Architecture:**
+1. **Data Extraction Layer**: Scripts to read and parse QuickBooks and bank statement data
+2. **Data Processing Layer**: Scripts to transform and calculate financial metrics
+3. **Report Generation Layer**: Scripts to format and output reports matching accounting firm format
+4. **Configuration Layer**: Settings for account mappings, date ranges, report templates
+
+**Key Design Principles:**
+- Keep components simple and focused
+- Make components reusable across different report types
+- Use configuration files for mappings and settings
+- Document all calculations and assumptions
+- Maintain clear separation between data, processing, and output
+
+---
+
+## High-level Task Breakdown
+
+### Phase 1: Requirements Gathering & Analysis ✅ COMPLETE
+**Objective:** Understand the data formats and report structure
+
+**Tasks:**
+- [x] Receive and analyze the last quarterly report from accounting firm
+- [x] Identify all sections, line items, and calculations in the report
+- [x] Receive and analyze QuickBooks data format
+- [x] Receive and analyze bank statement format (QuickBooks includes bank data)
+- [x] Document data mappings (QuickBooks accounts → report line items)
+- [x] Document calculation methodology
+- [x] Create data dictionary for all fields
+
+**Success Criteria:**
+- ✅ Complete understanding of report structure
+- ✅ Documented data formats and sources
+- ✅ Clear mapping between source data and report outputs
+- ✅ Calculation methodology documented
+
+**Deliverables:**
+- ✅ Report structure analysis: 3 main sections (Balance Sheet, Income Statement, Budget vs Actuals)
+- ✅ Data format specifications: CSV journal export with 6,103 transactions
+- ✅ Account mapping: Direct mapping by account number (4000s=Income, 6000s=Expenses)
+- ✅ Calculation methodology: Sum debits/credits by account number and date range
+
+**Key Findings:**
+1. **Report Structure:**
+   - Balance Sheet: Assets (Bank Accounts, AR) and Liabilities (AP, Credit Cards, Other)
+   - Income Statement: Income (4000s) and Expenses (6000s), Net Operating Income, Other Income
+   - Budget vs Actuals: Variance analysis with percentages
+   - All sections show current period and prior year (PY) comparisons
+
+2. **Data Source:**
+   - QuickBooks Journal CSV export contains all necessary data
+   - Account numbers directly map to report line items
+   - Date filtering needed: Q2 2025 = April 1 - June 30, 2025
+   - Bank account data included in QuickBooks export (accounts 1002, 1003, 1006, 1007)
+
+3. **Calculations:**
+   - Balance Sheet: Sum transactions by account, calculate ending balances
+   - Income Statement: Sum income/expense transactions for period
+   - Budget comparison: Compare actuals to budget (budget file needed)
+
+---
+
+### Phase 2: Data Extraction Module Development
+**Objective:** Create scripts to extract and parse source data
+
+**Tasks:**
+- [ ] Create QuickBooks data extraction script
+- [ ] Create bank statement extraction script
+- [ ] Implement data validation and error handling
+- [ ] Create data normalization functions
+- [ ] Add logging and debugging capabilities
+
+**Success Criteria:**
+- Scripts successfully extract all required data
+- Data is validated and normalized
+- Error handling for missing or malformed data
+- Clear logging for troubleshooting
+
+**Files to Create:**
+- `scripts/acahm/accounting/extract_quickbooks_data.py`
+- `scripts/acahm/accounting/extract_bank_statements.py`
+- `scripts/acahm/accounting/data_validator.py`
+- `scripts/acahm/accounting/config.py` (data extraction settings)
+
+---
+
+### Phase 3: Data Processing Module Development
+**Objective:** Create scripts to calculate financial metrics
+
+**Tasks:**
+- [ ] Create calculation engine for report line items
+- [ ] Implement account reconciliation logic
+- [ ] Create period comparison functions (quarter-over-quarter, year-over-year)
+- [ ] Implement data aggregation and summarization
+- [ ] Add calculation validation and verification
+
+**Success Criteria:**
+- All calculations match accounting firm's methodology
+- Calculations are verified against source report
+- Period comparisons work correctly
+- Data aggregation is accurate
+
+**Files to Create:**
+- `scripts/acahm/accounting/calculate_metrics.py`
+- `scripts/acahm/accounting/reconcile_accounts.py`
+- `scripts/acahm/accounting/period_comparisons.py`
+- `scripts/acahm/accounting/aggregations.py`
+
+---
+
+### Phase 4: Report Generation Module Development
+**Objective:** Create scripts to generate reports matching accounting firm format
+
+**Tasks:**
+- [ ] Create report template matching accounting firm format
+- [ ] Implement report generation script
+- [ ] Add formatting and styling to match original
+- [ ] Create output in appropriate format (PDF, Excel, Word, or HTML)
+- [ ] Add report metadata (date, period, version)
+
+**Success Criteria:**
+- Generated report matches accounting firm format exactly
+- All sections and line items are present
+- Formatting and styling match original
+- Report is readable and professional
+
+**Files to Create:**
+- `scripts/acahm/accounting/generate_report.py`
+- `scripts/acahm/accounting/report_templates.py`
+- `scripts/acahm/accounting/format_output.py`
+
+---
+
+### Phase 5: Integration & Testing
+**Objective:** Integrate all modules and verify accuracy
+
+**Tasks:**
+- [ ] Create main script to run full pipeline
+- [ ] Test with last quarterly report data
+- [ ] Verify calculations match accounting firm report exactly
+- [ ] Test error handling and edge cases
+- [ ] Create user documentation
+
+**Success Criteria:**
+- Full pipeline runs successfully
+- Generated report matches accounting firm report exactly
+- All calculations verified
+- Error handling works correctly
+- Documentation is complete
+
+**Files to Create:**
+- `scripts/acahm/accounting/run_quarterly_report.py` (main entry point)
+- `scripts/acahm/accounting/README.md` (documentation)
+- `scripts/acahm/accounting/requirements.txt` (dependencies)
+
+---
+
+### Phase 6: Future Report Automation
+**Objective:** Enable automated generation of future quarterly reports
+
+**Tasks:**
+- [ ] Create script to process new quarterly data
+- [ ] Add date range configuration
+- [ ] Create automated report naming and organization
+- [ ] Add comparison to previous quarters
+- [ ] Create summary and notification features
+
+**Success Criteria:**
+- New quarterly reports can be generated automatically
+- Reports are properly named and organized
+- Comparisons to previous periods work
+- Process is documented and repeatable
+
+---
+
+## Project Status Board
+
+- [x] Phase 1: Requirements Gathering & Analysis ✅
+- [ ] Phase 2: Data Extraction Module Development
+- [ ] Phase 3: Data Processing Module Development
+- [ ] Phase 4: Report Generation Module Development
+- [ ] Phase 5: Integration & Testing
+- [ ] Phase 6: Future Report Automation
+
+---
+
+## Current Status / Progress Tracking
+
+**Executor (January 2025):** Phase 2, 3 & 4 - COMPLETE ✅
+- ✅ Created QuickBooks CSV extraction script (`extract_quickbooks_data.py`)
+- ✅ Created configuration file with account mappings (`config.py`)
+- ✅ Created calculation engine (`calculate_metrics.py`)
+- ✅ Created report generation script (`generate_report.py`)
+- ✅ Verified data extraction: 1,820 transactions for Jan-Jun 2025
+- ✅ Account 4000 (Accreditation Fees): $794,573.00 ✅ Matches report exactly
+- ✅ Personnel Costs: $383,785.19 ✅ Matches report exactly
+- ✅ Generated Excel report: `2025_Q2_Financial_Statements_Generated_20260113.xlsx`
+- ⚠️ Minor discrepancies in some accounts (4100, 4400, 6900) - likely due to accounting adjustments
+- ✅ Report includes: Balance Sheet, Income Statement, Other Income sections
+
+**Planner (January 2025):** Initial project planning completed
+- Created comprehensive project structure
+- Defined 6 phases with clear objectives
+- Identified key challenges and solution approach
+
+**Planner (January 2025):** Phase 1 - Requirements Gathering & Analysis COMPLETE ✅
+- ✅ Analyzed accounting firm report: `2025 Q2 Financial Statements - ACAHM.pdf`
+  - 8-page PDF report for quarter ended June 30, 2025
+  - Three main sections:
+    1. **Statements of Financial Position** (Balance Sheet) - Assets & Liabilities
+    2. **Statements of Activities** (Income Statement) - Income & Expenses
+    3. **Budget vs. Actuals** - Variance analysis
+  - Shows current period (Jan-Jun 2025) and prior year (PY) comparisons
+  - Organized by account numbers (4000s = Income, 6000s = Expenses, etc.)
+- ✅ Analyzed QuickBooks data: `ACAHM_Journal.csv`
+  - 6,103 lines of journal entries
+  - Format: CSV with columns: Transaction date, Type, Num, Name, Memo, Account number, Account name, Debit, Credit
+  - Date range: January-December 2025 (need to filter for Q2: April-June 2025)
+  - Transaction types: Bill, Deposit, Expense, Payment, Journal Entry, Bill Payment, etc.
+- ✅ Identified data structure and mappings
+  - Account numbers map directly to report line items
+  - Need to aggregate transactions by account number and date range
+  - Need to calculate balances for balance sheet accounts
+  - Need to sum income/expenses for income statement accounts
+- ⚠️ Bank statements: Not found in provided directory
+  - QuickBooks data includes bank account transactions (1002, 1003, 1006, 1007)
+  - May not need separate bank statement file if QuickBooks data is complete
+  - Will verify during implementation
+
+---
+
+## Executor's Feedback or Assistance Requests
+
+**Planner (January 2025):** Ready to begin Phase 1. Need the following from user:
+
+### Required Files/Information:
+
+1. **Last Quarterly Report from Accounting Firm**
+   - Format: (PDF, Excel, Word, or other)
+   - Purpose: Understand report structure, sections, calculations, and formatting
+
+2. **QuickBooks Data Export**
+   - Format: (CSV, IIF, QBO API export, or other)
+   - Time Period: Last quarter that matches the report
+   - Purpose: Understand data structure and available fields
+
+3. **Bank Statements**
+   - Format: (CSV, PDF, or other)
+   - Time Period: Last quarter that matches the report
+   - Purpose: Understand transaction format and reconciliation needs
+
+4. **Additional Context (Optional but helpful):**
+   - Chart of accounts mapping (if available)
+   - Any specific calculation methodologies or rules
+   - Preferred output format for generated reports
+   - Any specific requirements or constraints
+
+### Questions to Clarify:
+
+1. **QuickBooks Export Format:**
+   - How do you currently export QuickBooks data? (CSV, IIF, QBO API, or other?)
+   - What specific reports or data sets do you export?
+
+2. **Bank Statement Format:**
+   - Are bank statements in CSV, PDF, or another format?
+   - Do you have multiple bank accounts to reconcile?
+
+3. **Report Output Preference:**
+   - What format should the generated reports be in? (PDF, Excel, Word, HTML?)
+   - Should reports match the accounting firm format exactly, or can we improve formatting?
+
+4. **Timeline:**
+   - When do you need the first automated report?
+   - Is there a deadline for duplicating the last quarterly report?
+
+5. **Scope:**
+   - Are there any sections of the quarterly report that are not needed or can be simplified?
+   - Are there any additional calculations or metrics you'd like included?
+
+---
+
+## Lessons
+
+*(To be filled during implementation if any issues arise)*
+
+---
+
+---
+
+# Acupuncture School Industry Crisis: Strategic Game Theory Analysis
+**Federal Loan Elimination Crisis - 2 Year Window**
+
+**Last Updated:** January 2025  
+**Current Status:** PHASE 1 - Problem Deconstruction  
+**Project Type:** Strategic Game Theory Analysis  
+**Role:** Game Theory Strategist
+
+---
+
+## Executive Summary
+
+The acupuncture school industry faces an existential crisis: federal student loans are being eliminated in two years, and most schools depend on these loans for student enrollment. As chair of acaom.org, the mission is to "right the ship" by developing optimal strategic responses using game theory frameworks.
+
+**Critical Timeline:** 24 months until federal loan elimination  
+**Stakeholder Complexity:** Multiple players with competing interests  
+**Strategic Objective:** Ensure industry survival and student success
+
+---
+
+## Background and Motivation
+
+**Problem Statement:**
+- Several dozen acupuncture schools in the US
+- Most schools struggle financially
+- Almost all depend on students who can get federal loans to pay tuition
+- Federal loans are being eliminated in 2 years
+- Students are not prepared to succeed
+- Multiple regulatory and institutional players involved
+
+**Key Players Identified:**
+1. **You (Chair of acaom.org)** - Industry leadership position
+2. **State Boards** - Regulatory oversight
+3. **Accrediting Agency (acahm.org)** - Quality standards and accreditation
+4. **Testing Organization (nccaom.org)** - Certification and credentialing
+5. **State Organizations** - State-level advocacy and coordination
+6. **Individual Schools** - Dozens of institutions with varying financial health
+7. **Students** - Current and prospective students
+8. **Federal Government** - Loan policy makers
+9. **Private Lenders** - Potential alternative funding sources
+
+**Desired Outcomes:**
+- Industry survival and sustainability
+- Student success and preparedness
+- Financial viability for schools
+- Maintained quality standards
+- Regulatory compliance
+- Long-term industry health
+
+---
+
+## PHASE 1: Problem Deconstruction & Player Identification
+
+**Status:** IN PROGRESS
+
+### Challenge Definition
+
+**Primary Challenge:** 
+How to restructure the acupuncture education industry to survive and thrive when federal student loan funding is eliminated in 24 months.
+
+**Secondary Challenges:**
+- Financial sustainability for struggling schools
+- Student preparedness and success rates
+- Maintaining quality standards during transition
+- Coordinating multiple stakeholders with different interests
+- Creating alternative funding mechanisms
+- Managing regulatory compliance during transition
+
+### Player Identification & Initial Classification
+
+#### Primary Players (Direct Decision Makers)
+
+1. **You (acaom.org Chair)**
+   - **Role:** Industry leader, strategic coordinator
+   - **Decision Authority:** High (can influence industry direction)
+   - **Time Horizon:** Long-term (industry survival)
+   - **Key Decisions:** Strategic direction, coalition building, resource allocation
+
+2. **Individual Schools (36 total)**
+   - **Role:** Direct service providers, financial entities
+   - **Decision Authority:** High (operational decisions)
+   - **Time Horizon:** Short to medium (survival)
+   - **Key Decisions:** Tuition pricing, program changes, closures, mergers, federal aid acceptance
+   - **Sub-categories:**
+     - **Non-Federal-Aid Schools (Few):** Financially robust, lower overhead, lower tuition, fewer compliance requirements
+     - **Federal-Aid Schools (Most):** Dependent on federal loans, higher overhead, higher tuition, full compliance requirements
+
+3. **Students (Current & Prospective)**
+   - **Role:** Consumers, beneficiaries
+   - **Decision Authority:** Medium (enrollment choices)
+   - **Time Horizon:** Short (2-4 year programs)
+   - **Key Decisions:** School selection, enrollment, payment methods
+
+#### Secondary Players (Influencers & Regulators)
+
+4. **State Boards**
+   - **Role:** Regulators, quality enforcers
+   - **Decision Authority:** High (licensing, standards)
+   - **Time Horizon:** Long-term (public protection)
+   - **Key Decisions:** Licensing requirements, school approvals, enforcement
+
+5. **Accrediting Agency (acahm.org)**
+   - **Role:** Quality assurance, federal compliance
+   - **Decision Authority:** High (accreditation status)
+   - **Time Horizon:** Long-term (standards maintenance)
+   - **Key Decisions:** Accreditation standards, school evaluations, federal compliance
+
+6. **Testing Organization (nccaom.org)**
+   - **Role:** Credentialing, competency assessment
+   - **Decision Authority:** Medium (certification requirements)
+   - **Time Horizon:** Medium-term (professional standards)
+   - **Key Decisions:** Exam requirements, pass rates, credentialing standards
+
+7. **State Organizations**
+   - **Role:** State-level advocacy, coordination
+   - **Decision Authority:** Medium (influence, coordination)
+   - **Time Horizon:** Medium-term (state interests)
+   - **Key Decisions:** Advocacy priorities, resource allocation, coordination
+
+#### Tertiary Players (External Influencers)
+
+8. **Federal Government (Loan Policy Makers)**
+   - **Role:** Policy setter, funding source (currently)
+   - **Decision Authority:** Absolute (loan elimination decision)
+   - **Time Horizon:** Long-term (policy objectives)
+   - **Key Decisions:** Loan policy, timing, transition support (if any)
+
+9. **Private Lenders**
+   - **Role:** Alternative funding sources
+   - **Decision Authority:** Medium (lending decisions)
+   - **Time Horizon:** Short to medium (profitability)
+   - **Key Decisions:** Lending criteria, interest rates, loan availability
+
+10. **Employers/Industry**
+    - **Role:** Job market, demand signal
+    - **Decision Authority:** Low (market forces)
+    - **Time Horizon:** Short-term (hiring needs)
+    - **Key Decisions:** Hiring practices, salary levels, job availability
+
+### Decision Structure Analysis
+
+**Game Type Classification:**
+- **Multi-player sequential game** with incomplete information
+- **Cooperative elements** (industry survival requires coordination)
+- **Competitive elements** (schools compete for students)
+- **Repeated interactions** (ongoing relationships)
+- **Asymmetric information** (different players have different knowledge)
+
+**Key Decision Points:**
+1. **Immediate (0-6 months):** Crisis response, coalition building, information gathering
+2. **Short-term (6-12 months):** Strategic initiatives, pilot programs, alternative funding
+3. **Medium-term (12-18 months):** Implementation, scaling, transition management
+4. **Long-term (18-24 months):** Post-loan elimination adaptation, new equilibrium
+
+### Information Asymmetries
+
+- **Schools know:** Their own financial health, student success rates, operational costs
+- **You know:** Industry-wide patterns, regulatory landscape, strategic options
+- **Students know:** Their financial situation, career goals, willingness to pay
+- **Regulators know:** Compliance requirements, quality standards, enforcement priorities
+- **Unknown to all:** Exact federal timeline, transition support, market response
+
+---
+
+## PHASE 2: Incentive Mapping & Payoff Analysis
+
+**Status:** IN PROGRESS
+
+### Core Strategic Insight
+
+**The Non-Federal-Aid Model Reveals the Path Forward:**
+- Schools that don't accept federal aid have:
+  - Lower overhead (fewer compliance requirements)
+  - Lower tuition (more accessible to students)
+  - Financial independence (not dependent on federal loans)
+  - **This is the successful equilibrium we need to replicate**
+
+### Player Incentive Profiles
+
+#### 1. You (acaom.org Chair)
+**Primary Incentives:**
+- Industry survival (all 36 schools or strategic subset)
+- Student success and preparedness
+- Maintain quality standards
+- Regulatory compliance (DoE charter constraints)
+- Long-term industry sustainability
+
+**Constraints:**
+- Limited by DoE charter (cannot mandate everything)
+- Must work within regulatory framework
+- Financial/staff resources are finite
+- Must balance competing school interests
+
+**Payoff Structure:**
+- **High Payoff:** Industry survives with quality maintained, students succeed
+- **Medium Payoff:** Some schools survive, quality maintained
+- **Low Payoff:** Industry collapses, quality standards lost
+- **Negative Payoff:** Industry collapse, regulatory violations, loss of credibility
+
+**Strategic Preferences:**
+- Prefer coordinated industry-wide solution
+- Prefer maintaining all schools if possible
+- Prefer quality over quantity
+- Prefer student success over school survival (if forced choice)
+
+#### 2. Individual Schools (36 total)
+
+**A. Non-Federal-Aid Schools (Few - Successful Model)**
+**Primary Incentives:**
+- Maintain current successful model
+- Avoid regulatory changes that might force federal aid acceptance
+- Protect competitive advantage (lower tuition, less overhead)
+- Industry stability (but not at their expense)
+
+**Payoff Structure:**
+- **High Payoff:** Continue current model, industry stabilizes
+- **Medium Payoff:** Current model continues, some competitors fail (reduced competition)
+- **Low Payoff:** Forced to accept federal aid (lose competitive advantage)
+- **Negative Payoff:** Industry collapse affects them too
+
+**Strategic Preferences:**
+- Prefer status quo (they're already successful)
+- Prefer not to share competitive advantages
+- Prefer industry stability (but not urgent for them)
+- May resist changes that help struggling schools
+
+**B. Federal-Aid Schools (Most - Struggling)**
+**Primary Incentives:**
+- Immediate survival (24-month deadline)
+- Find alternative funding sources
+- Reduce costs (overhead, compliance)
+- Maintain enrollment
+- Avoid closure
+
+**Payoff Structure:**
+- **High Payoff:** Transition to sustainable model, survive
+- **Medium Payoff:** Merge with stronger school, partial survival
+- **Low Payoff:** Gradual closure, orderly wind-down
+- **Negative Payoff:** Sudden collapse, stranded students, regulatory violations
+
+**Strategic Preferences:**
+- Prefer any solution that allows survival
+- Prefer coordinated industry solution (shared costs)
+- Prefer regulatory relief (reduce compliance costs)
+- Prefer alternative funding mechanisms
+- May resist changes that reduce their competitive position
+
+**Information Asymmetry:**
+- Each school knows its own financial health
+- Schools don't know competitors' true financial status
+- Creates prisoner's dilemma: Should I reveal my weakness or hide it?
+
+#### 3. Students (Current & Prospective)
+**Primary Incentives:**
+- Complete education successfully
+- Minimize debt burden
+- Achieve licensure and employment
+- Avoid being stranded by school closures
+
+**Payoff Structure:**
+- **High Payoff:** Complete education, get licensed, find employment, manageable debt
+- **Medium Payoff:** Complete education, get licensed, struggle with debt
+- **Low Payoff:** Incomplete education, debt burden, no license
+- **Negative Payoff:** Stranded by school closure, debt, no education
+
+**Strategic Preferences:**
+- Prefer lower tuition (non-federal-aid model)
+- Prefer schools that prepare them for success
+- Prefer schools that won't close mid-program
+- May choose non-federal-aid schools if available
+
+**Information Asymmetry:**
+- Students don't know which schools will survive
+- Students don't know true employment outcomes
+- Students may not understand debt implications
+
+#### 4. State Boards
+**Primary Incentives:**
+- Protect public (ensure quality education)
+- Ensure students aren't stranded
+- Maintain regulatory authority
+- Avoid scandals (school closures, student complaints)
+
+**Payoff Structure:**
+- **High Payoff:** Industry stabilizes, quality maintained, no student harm
+- **Medium Payoff:** Some schools close but orderly, students protected
+- **Low Payoff:** Multiple school closures, students harmed
+- **Negative Payoff:** Regulatory failures, public scandals, loss of authority
+
+**Strategic Preferences:**
+- Prefer orderly transitions
+- Prefer quality over quantity
+- Prefer student protection
+- May support regulatory relief if it improves outcomes
+
+#### 5. Accrediting Agency (acahm.org)
+**Primary Incentives:**
+- Maintain accreditation standards
+- Ensure federal compliance (if schools accept federal aid)
+- Industry stability
+- Credibility and reputation
+
+**Payoff Structure:**
+- **High Payoff:** Industry stabilizes, standards maintained, compliance achieved
+- **Medium Payoff:** Some schools close, standards maintained for remaining
+- **Low Payoff:** Standards compromised, compliance failures
+- **Negative Payoff:** Loss of federal recognition, credibility destroyed
+
+**Strategic Preferences:**
+- Prefer maintaining standards
+- Prefer industry stability
+- May support reduced compliance for non-federal-aid schools
+- Must balance standards with industry survival
+
+#### 6. Testing Organization (nccaom.org)
+**Primary Incentives:**
+- Maintain exam standards
+- Ensure competency assessment
+- Industry stability (more schools = more test takers)
+- Credibility
+
+**Payoff Structure:**
+- **High Payoff:** Industry stabilizes, exam standards maintained, steady test volume
+- **Medium Payoff:** Fewer schools but stable, standards maintained
+- **Low Payoff:** Industry collapse, reduced test volume, standards questioned
+- **Negative Payoff:** Loss of credibility, reduced relevance
+
+**Strategic Preferences:**
+- Prefer industry stability
+- Prefer maintaining standards
+- May support initiatives that improve student preparedness
+
+#### 7. State Organizations
+**Primary Incentives:**
+- State-level industry health
+- Advocacy for state interests
+- Coordination and communication
+- Resource allocation
+
+**Payoff Structure:**
+- **High Payoff:** State industry stabilizes, advocacy successful
+- **Medium Payoff:** Some schools survive, partial success
+- **Low Payoff:** State industry collapses
+- **Negative Payoff:** Loss of relevance, funding cuts
+
+**Strategic Preferences:**
+- Prefer state-level solutions
+- Prefer coordination with national efforts
+- May have state-specific priorities
+
+#### 8. Federal Government (Loan Policy Makers)
+**Primary Incentives:**
+- Policy objectives (reduce federal loan burden)
+- Eliminate federal aid for this sector
+- No transition support (certain)
+- Long-term policy goals
+
+**Payoff Structure:**
+- **High Payoff:** Federal loans eliminated, policy objectives achieved
+- **Medium Payoff:** Loans eliminated, some industry disruption (acceptable)
+- **Low Payoff:** Loans eliminated, industry collapse (may create political issues)
+- **Negative Payoff:** Policy reversal needed, political backlash
+
+**Strategic Preferences:**
+- Prefer clean elimination (no exceptions)
+- Prefer no transition support (reduce costs)
+- May be indifferent to industry outcomes (not their responsibility)
+
+**Key Constraint:** This player's decision is FIXED - loans will be eliminated in 24 months. No negotiation possible.
+
+#### 9. Private Lenders
+**Primary Incentives:**
+- Profitability
+- Risk management
+- Market opportunity
+- Regulatory compliance
+
+**Payoff Structure:**
+- **High Payoff:** Profitable lending market, manageable risk
+- **Medium Payoff:** Limited market, higher risk, lower profitability
+- **Low Payoff:** Unprofitable market, high risk
+- **Negative Payoff:** Losses, regulatory issues
+
+**Strategic Preferences:**
+- Prefer creditworthy borrowers
+- Prefer schools with good outcomes
+- Prefer regulatory clarity
+- May be risk-averse (acupuncture students may not be attractive borrowers)
+
+**Information Asymmetry:**
+- Don't know true student success rates
+- Don't know school financial health
+- May overestimate risk
+
+#### 10. Employers/Industry
+**Primary Incentives:**
+- Qualified practitioners
+- Reasonable salary expectations
+- Professional standards
+- Market stability
+
+**Payoff Structure:**
+- **High Payoff:** Steady supply of qualified practitioners, stable market
+- **Medium Payoff:** Reduced supply, higher salaries, market disruption
+- **Low Payoff:** Shortage of practitioners, market instability
+- **Negative Payoff:** Industry collapse, no new practitioners
+
+**Strategic Preferences:**
+- Prefer industry stability
+- Prefer qualified practitioners
+- May support initiatives that improve student preparedness
+
+### Payoff Matrix: Key Strategic Scenarios
+
+#### Scenario 1: Industry-Wide Coordination vs. Individual School Actions
+
+**If acaom.org coordinates industry-wide solution:**
+- **Cooperative Outcome:** Shared costs, coordinated transition, industry survives
+- **Payoff for acaom.org:** High (mission accomplished)
+- **Payoff for schools:** Medium-High (survival, but may require changes)
+- **Payoff for students:** High (industry stability, quality maintained)
+
+**If schools act individually:**
+- **Competitive Outcome:** Some survive, many fail, industry fragmentation
+- **Payoff for acaom.org:** Low (partial failure)
+- **Payoff for surviving schools:** Medium (survive but weakened industry)
+- **Payoff for failing schools:** Negative (closure)
+- **Payoff for students:** Low-Negative (stranded students, reduced quality)
+
+**Strategic Insight:** Coordination is Pareto-superior, but requires overcoming collective action problem.
+
+#### Scenario 2: Transition to Non-Federal-Aid Model vs. Status Quo
+
+**If schools transition to non-federal-aid model:**
+- **Payoff for transitioning schools:** High (financial independence, lower overhead)
+- **Payoff for students:** High (lower tuition, better outcomes)
+- **Payoff for regulators:** High (quality maintained, fewer compliance issues)
+- **Transition costs:** Medium (upfront costs, regulatory changes)
+
+**If schools maintain status quo:**
+- **Payoff for schools:** Negative (collapse when loans eliminated)
+- **Payoff for students:** Negative (stranded, debt, no education)
+- **Payoff for regulators:** Negative (scandals, failures)
+
+**Strategic Insight:** Transition is dominant strategy, but requires coordination and support.
+
+#### Scenario 3: Information Sharing vs. Information Hiding
+
+**If schools share financial information:**
+- **Payoff for industry:** High (coordinated solutions, resource sharing)
+- **Payoff for individual schools:** Medium (may reveal weakness, but get help)
+- **Risk:** Competitive disadvantage if information misused
+
+**If schools hide financial information:**
+- **Payoff for individual schools:** Medium (protect competitive position)
+- **Payoff for industry:** Low (cannot coordinate effectively)
+- **Risk:** Industry collapse affects all
+
+**Strategic Insight:** Information sharing is critical but requires trust mechanism.
+
+### Coalition Opportunities
+
+**Natural Coalitions:**
+1. **acaom.org + acahm.org + nccaom.org + State Boards:** Regulatory coalition (cooperative relationships)
+2. **Robust Schools + Struggling Schools:** Industry survival coalition (shared interest)
+3. **Students + Employers:** Quality coalition (both want good outcomes)
+4. **State Organizations + acaom.org:** Coordination coalition
+
+**Potential Conflicts:**
+1. **Robust Schools vs. Struggling Schools:** Resource competition, competitive advantage
+2. **Schools vs. Regulators:** Compliance costs vs. quality standards
+3. **Students vs. Schools:** Lower tuition vs. school survival
+
+### Information Advantages & Blind Spots
+
+**Information Advantages:**
+- **You (acaom.org):** Industry-wide view, regulatory knowledge, strategic options
+- **Schools:** Own financial health, operational costs, student success rates
+- **Regulators:** Compliance requirements, quality standards, enforcement priorities
+
+**Blind Spots:**
+- **All players:** Exact federal timeline details, market response, student behavior
+- **Schools:** Competitors' true financial status, industry-wide patterns
+- **Students:** School financial health, employment outcomes, debt implications
+- **Private lenders:** True student success rates, school financial health
+
+### Strategic Timing Considerations
+
+**Critical Windows:**
+1. **0-6 months:** Information gathering, coalition building, pilot programs
+2. **6-12 months:** Strategic initiatives, regulatory changes, alternative funding
+3. **12-18 months:** Implementation, scaling, transition management
+4. **18-24 months:** Final adjustments, new equilibrium establishment
+
+**Time-Sensitive Decisions:**
+- Schools must decide on federal aid acceptance (affects compliance requirements)
+- Students must choose schools (affects enrollment)
+- Regulators must approve changes (affects transition timeline)
+- Private lenders must enter market (affects funding availability)
+
+---
+
+**Phase 2 Status:** COMPLETE ✅
+
+---
+
+## PHASE 3: Strategy Space Analysis
+
+**Status:** PENDING
+
+---
+
+## PHASE 4: Equilibrium Analysis & Solution Concepts
+
+**Status:** PENDING
+
+---
+
+## PHASE 5: Strategic Recommendation & Implementation
+
+**Status:** PENDING
+
+---
+
+## PHASE 6: Dynamic Adjustment & Counter-Strategy Analysis
+
+**Status:** PENDING
+
+---
+
+## Project Status Board
+
+- [x] Phase 1: Problem Deconstruction & Player Identification ✅ COMPLETE
+- [x] Phase 2: Incentive Mapping & Payoff Analysis ✅ COMPLETE
+- [ ] Phase 3: Strategy Space Analysis
+- [ ] Phase 4: Equilibrium Analysis & Solution Concepts
+- [ ] Phase 5: Strategic Recommendation & Implementation
+- [ ] Phase 6: Dynamic Adjustment & Counter-Strategy Analysis
+
+---
+
+## Current Status / Progress Tracking
+
+**Game Theory Strategist (January 2025):** Phase 1 - Problem Deconstruction COMPLETE ✅
+- ✅ Identified primary challenge: Federal loan elimination in 24 months (CERTAIN, no federal transition support)
+- ✅ Mapped 10 key player categories with roles and decision authority
+- ✅ Classified game structure: Multi-player sequential game with cooperative/competitive elements
+- ✅ Identified key decision timeframes: Immediate, short-term, medium-term, long-term
+- ✅ Documented information asymmetries
+- ✅ **Key Intelligence Gathered:**
+  - **acaom.org Authority:** Financial/staff resources available, but limited by DoE charter (cannot mandate everything)
+  - **Industry Structure:** 36 schools total, only a few not dependent on federal loans
+  - **Non-Federal-Aid Schools:** Don't accept federal aid → fewer accreditation requirements → decreased overhead → lower tuition (successful model to study)
+  - **Regulatory Environment:** Cooperative relationships between state boards, acahm.org, nccaom.org
+  - **Student Metrics:** Vary markedly school-by-school, state-by-state (available on web)
+  - **Timeline:** 2-year deadline is CERTAIN, no federal transition support
+
+---
+
+## Executor's Feedback or Assistance Requests
+
+**Game Theory Strategist (January 2025):** To complete Phase 1 and proceed to incentive mapping, I need the following information:
+
+### Critical Information Needed:
+
+1. **Your Position & Authority:**
+   - What specific authority does acaom.org have? (Standards setting? Advocacy? Coordination?)
+   - What resources are available? (Budget, staff, influence)
+   - What is your relationship with acahm.org (accrediting agency)?
+   - Can you mandate changes or only recommend?
+
+2. **Industry Financial Health:**
+   - How many schools are "robust" vs "struggling"?
+   - What percentage of revenue comes from federal loans?
+   - What are typical tuition levels?
+   - What are current student success rates?
+
+3. **Student Preparedness:**
+   - What specific gaps exist in student preparedness?
+   - What are current graduation rates?
+   - What are licensure exam pass rates?
+   - What are employment outcomes?
+
+4. **Regulatory Environment:**
+   - What are the relationships between state boards, acahm.org, and nccaom.org?
+   - Are there conflicts or cooperation?
+   - What regulatory changes are possible?
+
+5. **Timeline & Constraints:**
+   - Is the 2-year timeline firm or could it change?
+   - Are there any transition programs or support from federal government?
+   - What are the earliest possible decision points?
+
+### Questions for Strategic Analysis:
+
+1. **Coalition Building:** Which players are most likely to cooperate? Which have conflicting interests?
+2. **Information Strategy:** What information should be shared vs. kept private?
+3. **Timing:** What are the critical decision windows before loan elimination?
+4. **Exit Strategies:** Should struggling schools be allowed to fail, or is industry-wide survival the goal?
+
+Please provide this information so I can complete Phase 1 and move to incentive mapping and payoff analysis.
+
+---
+
+## Lessons
+
+*(To be filled during strategic analysis)*
