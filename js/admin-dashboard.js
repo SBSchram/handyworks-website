@@ -485,15 +485,15 @@
                     const deleteButtonSize = isUnpaid ? '0.9rem' : '1.1rem';
                     const deleteButton = !hasPayments ? `
                         <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${user.acct_num}', event)" 
-                                style="background: transparent; color: #dc3545; border: none; padding: 0.15rem 0.3rem; cursor: pointer; font-size: ${deleteButtonSize}; margin-right: 0.5rem;"
+                                style="background: transparent; color: #dc3545; border: none; padding: 0.15rem 0.3rem; cursor: pointer; font-size: ${deleteButtonSize}; margin-right: 0.25rem;"
                                 title="Delete invoice">✕</button>
                     ` : '';
                     
                     // Combine delete button and action button on same line
-                    // X on left, Record Payment on right
+                    // X on left, Record Payment on right - reduced gap to match spacing
                     let actionsContent = '';
                     if (deleteButton && actionButton) {
-                        actionsContent = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">${deleteButton}${actionButton}</div>`;
+                        actionsContent = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 0.25rem;">${deleteButton}${actionButton}</div>`;
                     } else if (deleteButton) {
                         actionsContent = deleteButton;
                     } else if (actionButton) {
