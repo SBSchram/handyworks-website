@@ -1363,14 +1363,14 @@
     // Generate reminder invoice for unpaid invoices
     async function generateReminderInvoice(invoiceId, acctNum, invoiceIdStr, year) {
         try {
-            // Get invoice data
+            // Get original invoice data
             const invoiceDoc = await db.collection('handyworks_invoices').doc(invoiceId).get();
             if (!invoiceDoc.exists) {
                 alert('Invoice not found');
                 return;
             }
             
-            const invoice = invoiceDoc.data();
+            const originalInvoice = invoiceDoc.data();
             
             // Get user data
             const userDoc = await db.collection('handyworks_users').doc(acctNum.toString()).get();
@@ -1381,25 +1381,58 @@
             const user = userDoc.data();
             
             // Check if invoice has payment link
-            if (!invoice.stripe_payment_link_url) {
+            if (!originalInvoice.stripe_payment_link_url) {
                 alert('This invoice does not have a payment link. Please generate a new invoice first.');
                 return;
             }
             
+            // Create new reminder invoice record in Firebase
+            const reminderInvoice = {
+                invoice_id: `INV-${year || originalInvoice.year}-${acctNum}`, // Same format as original
+                acct_num: acctNum,
+                customer_name: originalInvoice.customer_name || formatCustomerName(user),
+                customer_email: user.EMAIL || originalInvoice.customer_email || '',
+                clinic_name: user.clinic || originalInvoice.clinic_name || '',
+                year: year || originalInvoice.year,
+                amount: originalInvoice.amount,
+                description: `Annual Maintenance Reminder ${year || originalInvoice.year}`,
+                invoice_date: firebase.firestore.Timestamp.now(),
+                payment_status: originalInvoice.payment_status || 'pending', // Inherit original status
+                payment_method: null,
+                stripe_payment_link_id: originalInvoice.stripe_payment_link_id || 'existing',
+                stripe_payment_link_url: originalInvoice.stripe_payment_link_url, // Use non-expiring link
+                stripe_payment_intent_id: null,
+                paid_date: null,
+                paid_amount: null,
+                transaction_ref: null,
+                created_at: firebase.firestore.Timestamp.now(),
+                updated_at: firebase.firestore.Timestamp.now(),
+                created_by: auth.currentUser?.email || 'admin',
+                updated_by: null,
+                is_reminder: true, // Mark as reminder
+                original_invoice_id: originalInvoice.invoice_id, // Reference to original invoice ID
+                original_invoice_doc_id: invoiceId // Store original Firestore document ID
+            };
+            
+            // Save reminder invoice to Firestore
+            const reminderDocRef = await db.collection('handyworks_invoices').add(reminderInvoice);
+            console.log('Reminder invoice created:', reminderDocRef.id, 'with invoice_id:', reminderInvoice.invoice_id);
+            
             // Prepare invoice data for template
             const invoiceData = {
-                acct_num: user.acct_num,
-                customer_name: invoice.customer_name || formatCustomerName(user),
-                customer_email: user.EMAIL || invoice.customer_email || '',
-                clinic_name: user.clinic || '',
-                year: year || invoice.year,
-                amount: invoice.amount,
-                description: `Annual Maintenance Reminder ${year || invoice.year}`
+                acct_num: acctNum,
+                customer_name: reminderInvoice.customer_name,
+                customer_email: reminderInvoice.customer_email,
+                clinic_name: reminderInvoice.clinic_name,
+                year: reminderInvoice.year,
+                amount: reminderInvoice.amount,
+                description: reminderInvoice.description,
+                invoice_id: reminderInvoice.invoice_id
             };
             
             const paymentLink = {
-                url: invoice.stripe_payment_link_url,
-                id: invoice.stripe_payment_link_id || 'existing'
+                url: originalInvoice.stripe_payment_link_url, // Non-expiring link
+                id: originalInvoice.stripe_payment_link_id || 'existing'
             };
             
             // Load reminder template and generate email
