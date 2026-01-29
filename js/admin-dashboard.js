@@ -1389,8 +1389,11 @@
             }
             const user = userDoc.data();
             
-            // Check if invoice has payment link
-            if (!originalInvoice.stripe_payment_link_url) {
+            // Payment link URL: prefer stripe_payment_link_url, allow alternate field names
+            const paymentLinkUrl = originalInvoice.stripe_payment_link_url
+                || originalInvoice.payment_link_url
+                || originalInvoice.stripe_payment_link;
+            if (!paymentLinkUrl || typeof paymentLinkUrl !== 'string' || !paymentLinkUrl.startsWith('http')) {
                 alert('This invoice does not have a payment link. Please generate a new invoice first.');
                 return;
             }
@@ -1409,7 +1412,7 @@
                 payment_status: originalInvoice.payment_status || 'pending', // Inherit original status
                 payment_method: null,
                 stripe_payment_link_id: originalInvoice.stripe_payment_link_id || 'existing',
-                stripe_payment_link_url: originalInvoice.stripe_payment_link_url, // Use non-expiring link
+                stripe_payment_link_url: paymentLinkUrl, // Use non-expiring link
                 stripe_payment_intent_id: null,
                 paid_date: null,
                 paid_amount: null,
@@ -1440,7 +1443,7 @@
             };
             
             const paymentLink = {
-                url: originalInvoice.stripe_payment_link_url, // Non-expiring link
+                url: paymentLinkUrl, // Non-expiring link from original invoice
                 id: originalInvoice.stripe_payment_link_id || 'existing'
             };
             
@@ -1564,6 +1567,15 @@ New York City, NY 10016`;
             for (const [placeholder, value] of Object.entries(replacements)) {
                 templateHtml = templateHtml.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
             }
+            
+            // Fix mistaken href: if template had href="[PaymentLinkText]" the href became the link text;
+            // replace any href that is the link text with the actual Stripe URL
+            const linkText = 'Pay Online via Stripe';
+            const escapedUrl = paymentLink.url.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            templateHtml = templateHtml.replace(
+                new RegExp('href=["\']' + linkText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']', 'gi'),
+                'href="' + escapedUrl + '"'
+            );
             
             // Extract head and body sections
             const headMatch = templateHtml.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
