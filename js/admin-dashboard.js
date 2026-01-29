@@ -38,6 +38,7 @@
     const exportButton = document.getElementById('exportButton');
     const settingsButton = document.getElementById('settingsButton');
     const invoiceTemplateEditorButton = document.getElementById('invoiceTemplateEditorButton');
+    const reminderTemplateEditorButton = document.getElementById('reminderTemplateEditorButton');
     
     // Stats elements
     const totalUsersEl = document.getElementById('totalUsers');
@@ -87,6 +88,10 @@
     // Invoice Template Editor handler
     if (invoiceTemplateEditorButton) {
         invoiceTemplateEditorButton.addEventListener('click', openInvoiceTemplateEditor);
+    }
+    // Reminder Template Editor handler
+    if (reminderTemplateEditorButton) {
+        reminderTemplateEditorButton.addEventListener('click', openReminderTemplateEditor);
     }
     
     // Load users from Firestore
@@ -1333,8 +1338,12 @@
     
     // Open invoice template editor (opens dedicated editor page)
     function openInvoiceTemplateEditor() {
-        // Open the dedicated template editor page
         window.open('template-editor.html', '_blank');
+    }
+    
+    // Open reminder template editor (opens dedicated editor page in reminder mode)
+    function openReminderTemplateEditor() {
+        window.open('template-editor.html?template=reminder', '_blank');
     }
     
     // Global variables for invoice editor
@@ -1455,14 +1464,16 @@
         try {
             let templateHtml = null;
             let source = 'unknown';
+            const firestoreDocId = isReminder ? 'reminder_template' : 'invoice_template';
+            const templateFileName = isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html';
             
-            // Try Firebase first
+            // Try Firebase first (reminder_template for reminders, invoice_template for invoices)
             try {
-                const templateDoc = await db.collection('handyworks_settings').doc('invoice_template').get();
+                const templateDoc = await db.collection('handyworks_settings').doc(firestoreDocId).get();
                 if (templateDoc.exists) {
                     templateHtml = templateDoc.data().html;
                     source = 'Firebase';
-                    console.log('Template loaded from Firebase');
+                    console.log(`Template loaded from Firebase (${firestoreDocId})`);
                 }
             } catch (firebaseError) {
                 console.log('Firebase load failed, trying file:', firebaseError);
@@ -1470,8 +1481,6 @@
             
             // Fallback to file if Firebase doesn't have it
             if (!templateHtml) {
-                // Use reminder template if requested, otherwise use regular template
-                const templateFileName = isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html';
                 // Template path is relative to billing/ directory where admin.html is located
                 const templateUrl = `templates/${templateFileName}`;
                 const response = await fetch(templateUrl);

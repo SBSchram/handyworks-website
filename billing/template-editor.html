@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice Template Editor - HandyWorks</title>
+    <title>Email Template Editor - HandyWorks</title>
     <link rel="stylesheet" href="../css/style.css">
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <link rel="icon" type="image/gif" href="../images/logos/cropped-hwlogo.gif">
@@ -136,8 +136,14 @@
 <body>
     <div class="editor-container">
         <div class="editor-header">
-            <h1>📝 Invoice Template Editor</h1>
-            <p>Edit your invoice email template. Use placeholders like <code>[Greeting]</code>, <code>[Year]</code>, <code>[CardAmount]</code> that will be replaced with actual data when generating invoices.</p>
+            <h1>📝 Email Template Editor</h1>
+            <p>Edit your email template. Use placeholders like <code>[Greeting]</code>, <code>[Year]</code>, <code>[CardAmount]</code> that will be replaced with actual data when sending.</p>
+            <p style="margin: 10px 0;">
+                <strong>Template type:</strong>
+                <button type="button" class="btn template-type-btn" id="templateTypeInvoice" data-type="invoice">Invoice</button>
+                <button type="button" class="btn template-type-btn" id="templateTypeReminder" data-type="reminder">Reminder</button>
+                <span style="color: #666; font-size: 0.9rem; margin-left: 8px;">(Reminder is for follow-up emails to customers who haven’t paid yet.)</span>
+            </p>
             <p><a href="admin.html" style="color: #008080;">← Back to Admin Dashboard</a></p>
         </div>
         
@@ -190,7 +196,7 @@
                 Changes are <strong>immediately available</strong> for all future invoice generations - no file downloads or Git commits needed!
             </p>
             <p style="color: #155724; font-size: 0.85rem; margin: 10px 0 0 0;">
-                <strong>Note:</strong> The template is stored in the <code>handyworks_settings</code> collection. If no template exists in Firebase, it will load from the file system as a fallback.
+                <strong>Note:</strong> Invoice and Reminder templates are stored in <code>handyworks_settings</code> (docs: <code>invoice_template</code>, <code>reminder_template</code>). If a template doesn’t exist in Firebase, it loads from the file system as a fallback.
             </p>
         </div>
     </div>
@@ -222,6 +228,8 @@
         let quill = null;
         let isHtmlView = false;
         let templateHead = '';
+        // 'invoice' or 'reminder' - which template we're editing
+        let currentTemplateType = 'invoice';
         
         // Initialize Quill editor
         function initEditor() {
@@ -247,6 +255,15 @@
             });
         }
         
+        // Get Firebase doc id and fallback file name for current template type
+        function getTemplateConfig() {
+            const isReminder = currentTemplateType === 'reminder';
+            return {
+                docId: isReminder ? 'reminder_template' : 'invoice_template',
+                fileName: isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html'
+            };
+        }
+        
         // Load template from Firebase (with fallback to file)
         async function loadTemplate() {
             try {
@@ -268,16 +285,17 @@
                     return;
                 }
                 
+                const config = getTemplateConfig();
                 let html = null;
                 let source = 'unknown';
                 
-                // Try Firebase first
+                // Try Firebase first (doc depends on template type)
                 try {
-                    const templateDoc = await db.collection('handyworks_settings').doc('invoice_template').get();
+                    const templateDoc = await db.collection('handyworks_settings').doc(config.docId).get();
                     if (templateDoc.exists) {
                         html = templateDoc.data().html;
                         source = 'Firebase';
-                        console.log('Template loaded from Firebase');
+                        console.log('Template loaded from Firebase:', config.docId);
                     }
                 } catch (firebaseError) {
                     console.log('Firebase load failed, trying file:', firebaseError);
@@ -286,10 +304,10 @@
                 // Fallback to file if Firebase doesn't have it
                 if (!html) {
                     const paths = [
-                        'templates/invoice-template.html',
-                        './templates/invoice-template.html',
-                        '../templates/invoice-template.html',
-                        'billing/templates/invoice-template.html'
+                        'templates/' + config.fileName,
+                        './templates/' + config.fileName,
+                        '../templates/' + config.fileName,
+                        'billing/templates/' + config.fileName
                     ];
                     
                     for (const path of paths) {
@@ -448,8 +466,9 @@ ${bodyContent}
                 saveButton.textContent = 'Saving...';
                 saveButton.disabled = true;
                 
-                // Save to Firebase
-                await db.collection('handyworks_settings').doc('invoice_template').set({
+                // Save to Firebase (doc depends on template type)
+                const config = getTemplateConfig();
+                await db.collection('handyworks_settings').doc(config.docId).set({
                     html: htmlContent,
                     updated_at: firebase.firestore.FieldValue.serverTimestamp(),
                     updated_by: user.email || user.uid
@@ -458,11 +477,12 @@ ${bodyContent}
                 saveButton.textContent = originalText;
                 saveButton.disabled = false;
                 
-                showMessage('✅ Template saved successfully to Firebase! Changes will be used immediately for all future invoices.', 'success');
+                const templateLabel = currentTemplateType === 'reminder' ? 'Reminder' : 'Invoice';
+                showMessage(`✅ ${templateLabel} template saved successfully to Firebase! Changes will be used immediately.`, 'success');
                 
                 const statusEl = document.getElementById('editorStatus');
                 if (statusEl) {
-                    statusEl.textContent = 'Template saved to Firebase. Changes are live!';
+                    statusEl.textContent = `${templateLabel} template saved to Firebase. Changes are live!`;
                     statusEl.style.color = '#28a745';
                 }
             } catch (error) {
@@ -498,15 +518,48 @@ ${bodyContent}
         document.getElementById('loadTemplateButton').addEventListener('click', loadTemplate);
         document.getElementById('saveTemplateButton').addEventListener('click', saveTemplate);
         
+        // Set template type and update button styles, then reload
+        function setTemplateType(type) {
+            currentTemplateType = type;
+            document.querySelectorAll('.template-type-btn').forEach(btn => {
+                const isActive = btn.dataset.type === type;
+                btn.classList.toggle('active', isActive);
+                btn.classList.toggle('btn-primary', isActive);
+                btn.classList.toggle('btn-secondary', !isActive);
+            });
+            loadTemplate();
+        }
+        
         // Initialize when page loads
         window.addEventListener('load', () => {
             console.log('Page loaded, initializing editor...');
             initEditor();
             console.log('Editor initialized, quill object:', quill);
             
+            // Read ?template=reminder from URL so "Reminder Template" opens in reminder mode
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('template') === 'reminder') {
+                currentTemplateType = 'reminder';
+            }
+            // Set initial button styles
+            document.getElementById('templateTypeInvoice').classList.toggle('btn-primary', currentTemplateType === 'invoice');
+            document.getElementById('templateTypeInvoice').classList.toggle('btn-secondary', currentTemplateType !== 'invoice');
+            document.getElementById('templateTypeInvoice').classList.toggle('active', currentTemplateType === 'invoice');
+            document.getElementById('templateTypeReminder').classList.toggle('btn-primary', currentTemplateType === 'reminder');
+            document.getElementById('templateTypeReminder').classList.toggle('btn-secondary', currentTemplateType !== 'reminder');
+            document.getElementById('templateTypeReminder').classList.toggle('active', currentTemplateType === 'reminder');
+            
+            // Template type button handlers
+            document.getElementById('templateTypeInvoice').addEventListener('click', () => {
+                if (currentTemplateType !== 'invoice') setTemplateType('invoice');
+            });
+            document.getElementById('templateTypeReminder').addEventListener('click', () => {
+                if (currentTemplateType !== 'reminder') setTemplateType('reminder');
+            });
+            
             // Wait a bit longer to ensure Quill is fully ready
             setTimeout(() => {
-                console.log('Loading template...');
+                console.log('Loading template:', currentTemplateType);
                 loadTemplate();
             }, 300);
         });
