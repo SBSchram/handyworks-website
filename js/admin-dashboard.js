@@ -1582,6 +1582,8 @@ New York City, NY 10016`;
     }
     
     // Open invoice editor modal
+    // When opened for a reminder, emailData already has full/head/body from the reminder template; use it.
+    // Otherwise (e.g. new invoice flow) load the invoice template.
     async function openInvoiceEditorModal(invoiceData, paymentLink, emailData) {
         // Get modal elements
         invoiceEditorModal = document.getElementById('invoiceEditorModal');
@@ -1595,7 +1597,14 @@ New York City, NY 10016`;
         
         // Load template and replace placeholders
         try {
-            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink);
+            let templateData;
+            // Use passed-in emailData only when it has full HTML template (e.g. reminder flow).
+            // "Edit from invoice modal" passes currentEmailData with to/subject/body (plain text), no .full.
+            if (emailData && emailData.full != null) {
+                templateData = emailData;
+            } else {
+                templateData = await loadInvoiceTemplate(invoiceData, paymentLink);
+            }
             
             // Extract body and head from template data
             let bodyContent, fullHtml;
@@ -1609,7 +1618,7 @@ New York City, NY 10016`;
                 // Object format - use body content for editing
                 bodyContent = templateData.body;
                 fullHtml = templateData.full;
-                invoiceTemplateHead = templateData.head;
+                invoiceTemplateHead = templateData.head || '';
             }
             
             // Initialize Quill editor if not already initialized
