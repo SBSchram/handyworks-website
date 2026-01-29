@@ -1577,6 +1577,13 @@ New York City, NY 10016`;
                 'href="' + escapedUrl + '"'
             );
             
+            // Fix href that has site base incorrectly prepended (e.g. handyworks.com/billing/https://buy.stripe.com/...)
+            // so the link is treated as relative; strip the base and keep only the absolute Stripe URL
+            templateHtml = templateHtml.replace(
+                /href=["']https?:\/\/[^"']*?(https:\/\/(?:buy|checkout)\.stripe\.com\/[^"']*)["']/gi,
+                'href="$1"'
+            );
+            
             // Extract head and body sections
             const headMatch = templateHtml.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
             const bodyMatch = templateHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
