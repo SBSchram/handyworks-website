@@ -1445,7 +1445,14 @@
             };
             
             // Load reminder template and generate email
-            const emailData = await loadInvoiceTemplate(invoiceData, paymentLink, true); // true = reminder template
+            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink, true); // true = reminder template
+            
+            // Editor modal and "Copy & Open Gmail" need to/subject; loadInvoiceTemplate only returns { full, head, body }
+            const emailData = {
+                ...templateData,
+                to: invoiceData.customer_email,
+                subject: `HandyWorks Annual Maintenance Reminder - ${invoiceData.year}`
+            };
             
             // Open editor with reminder template
             await openInvoiceEditorModal(invoiceData, paymentLink, emailData);
