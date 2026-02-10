@@ -485,14 +485,14 @@
                         `;
                     }
                     
-                    // Delete button (X) - only show if no payments exist
+                    // Delete button (X) - always show; if invoice has payments, delete offers to remove invoice + payments (for duplicates)
                     const hasPayments = invoice.payments && invoice.payments.length > 0;
                     const deleteButtonSize = isUnpaid ? '0.9rem' : '1.1rem';
-                    const deleteButton = !hasPayments ? `
+                    const deleteButton = `
                         <button onclick="deleteInvoice('${invoice.id}', '${invoice.invoice_id}', '${user.acct_num}', event)" 
                                 style="background: transparent; color: #dc3545; border: none; padding: 0.15rem 0.3rem; cursor: pointer; font-size: ${deleteButtonSize}; margin-right: 0.25rem;"
-                                title="Delete invoice">✕</button>
-                    ` : '';
+                                title="${hasPayments ? 'Delete invoice and its payment records' : 'Delete invoice'}">✕</button>
+                    `;
                     
                     // Combine delete button and action button on same line
                     // X on left, Record Payment on right - reduced gap to match spacing
@@ -825,22 +825,17 @@
                     return sum + (doc.data().discount_amount || 0);
                 }, 0);
                 
-                // Get invoice document ID
+                // Update ALL invoice documents with this invoice_id (handles duplicates)
                 const invoiceQuery = await db.collection('handyworks_invoices')
                     .where('invoice_id', '==', invoiceId)
-                    .limit(1)
                     .get();
                 
                 if (!invoiceQuery.empty) {
-                    const invoiceDoc = invoiceQuery.docs[0];
-                    const invoiceAmount = invoiceDoc.data().amount || 0;
-                    
-                    // Update invoice status (accounting for discounts)
+                    const invoiceAmount = invoiceQuery.docs[0].data().amount || 0;
                     const updateData = {
                         updated_at: firebase.firestore.Timestamp.now(),
                         updated_by: auth.currentUser?.email || 'admin'
                     };
-                    
                     if (totalPaid + totalDiscounts >= invoiceAmount) {
                         updateData.payment_status = 'paid';
                         updateData.paid_date = firebase.firestore.Timestamp.now();
@@ -848,10 +843,11 @@
                         updateData.payment_status = 'pending';
                         updateData.paid_date = null;
                     } else {
-                        updateData.payment_status = 'pending'; // Partial payment
+                        updateData.payment_status = 'pending';
                     }
-                    
-                    await invoiceDoc.ref.update(updateData);
+                    const batch = db.batch();
+                    invoiceQuery.docs.forEach(doc => batch.update(doc.ref, updateData));
+                    await batch.commit();
                 }
             }
             
@@ -887,24 +883,45 @@
             return;
         }
         
-        // Check if there are any payments
         const hasPayments = invoice.payments && invoice.payments.length > 0;
-        
+        const customerName = formatCustomerName(user);
+
         if (hasPayments) {
-            alert(
-                `Cannot delete invoice with payments.\n\n` +
+            const confirmMsg =
+                `This invoice has ${invoice.payments.length} payment(s).\n\n` +
+                `To remove a DUPLICATE invoice and its payment record(s), you can delete this invoice AND all its payment records.\n\n` +
+                `Customer: ${customerName}\n` +
                 `Invoice: ${invoiceId}\n` +
                 `Amount Billed: $${formatCurrency(invoice.amount)}\n` +
-                `Amount Paid: $${formatCurrency(invoice.totalPaid)}\n` +
-                `Payments: ${invoice.payments.length} payment(s)\n\n` +
-                `You must delete the payment records first.`
-            );
+                `Payments: ${invoice.payments.length}\n\n` +
+                `DELETE this invoice and ALL its payment records?\n` +
+                `This will PERMANENTLY remove the invoice and every payment linked to this invoice ID.\n` +
+                `This action cannot be undone.`;
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            try {
+                // Delete all payments for this invoice_id
+                const paymentsSnapshot = await db.collection('handyworks_payments')
+                    .where('invoice_id', '==', invoice.invoice_id)
+                    .get();
+                const batch = db.batch();
+                paymentsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                // Delete this invoice document
+                await db.collection('handyworks_invoices').doc(invoiceFirestoreId).delete();
+                console.log(`Invoice ${invoiceId} and ${paymentsSnapshot.size} payment(s) permanently deleted`);
+                await loadUsers();
+                alert('Invoice and its payment records deleted successfully.');
+            } catch (error) {
+                console.error('Error deleting invoice and payments:', error);
+                alert(`Failed to delete: ${error.message}`);
+            }
             return;
         }
-        
-        // Confirm deletion
-        const customerName = formatCustomerName(user);
-        const confirmMsg = 
+
+        // No payments - confirm and delete invoice only
+        const confirmMsg =
             `DELETE this invoice?\n\n` +
             `Customer: ${customerName}\n` +
             `Invoice: ${invoiceId}\n` +
@@ -912,22 +929,14 @@
             `Year: ${invoice.year}\n\n` +
             `This will PERMANENTLY DELETE the invoice from the database.\n` +
             `This action cannot be undone.`;
-        
         if (!confirm(confirmMsg)) {
             return;
         }
-        
         try {
-            // Hard delete - completely remove from database
             await db.collection('handyworks_invoices').doc(invoiceFirestoreId).delete();
-            
             console.log(`Invoice ${invoiceId} permanently deleted`);
-            
-            // Reload users to refresh display
             await loadUsers();
-            
             alert('Invoice deleted successfully.');
-            
         } catch (error) {
             console.error('Error deleting invoice:', error);
             alert(`Failed to delete invoice: ${error.message}`);

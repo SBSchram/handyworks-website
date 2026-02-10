@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "HandyWorks Website with Billing System",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "update-cache": "node scripts/update-cache-busting.js"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",

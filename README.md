@@ -53,6 +53,7 @@ Located in `scripts/`:
 - **regenerate_blog_index.py**: Regenerate blog homepage
 - **test_site.py**: Test all links and downloads
 - **final_cleanup.py**: Remove outdated files
+- **update-cache-busting.js**: Single source of truth for cache busting. Edit `version` in `js/config.js`, then run `npm run update-cache` to inject that version into all HTML.
 
 ## Technology Stack
 
