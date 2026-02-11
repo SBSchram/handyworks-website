@@ -155,7 +155,11 @@
             
             // Calculate payment totals and status for each invoice
             allUsers.forEach(user => {
-                const userInvoices = invoicesByAcctNum[user.acct_num] || [];
+                // Ignore reminder-only invoice records in the main admin display.
+                // Reminder invoices (is_reminder === true) are just email/log records that
+                // reference the original invoice via original_invoice_id. Payments should
+                // only be shown once, under the original invoice, not under reminder copies.
+                const userInvoices = (invoicesByAcctNum[user.acct_num] || []).filter(inv => !inv.is_reminder);
                 
                 // Process each invoice: calculate paid amount, discounts, and owed amount
                 user.invoices = userInvoices.map(invoice => {
