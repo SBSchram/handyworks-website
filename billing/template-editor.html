@@ -142,7 +142,8 @@
                 <strong>Template type:</strong>
                 <button type="button" class="btn template-type-btn" id="templateTypeInvoice" data-type="invoice">Invoice</button>
                 <button type="button" class="btn template-type-btn" id="templateTypeReminder" data-type="reminder">Reminder</button>
-                <span style="color: #666; font-size: 0.9rem; margin-left: 8px;">(Reminder is for follow-up emails to customers who haven’t paid yet.)</span>
+                <button type="button" class="btn template-type-btn" id="templateTypeFinal" data-type="final">Final Notice</button>
+                <span style="color: #666; font-size: 0.9rem; margin-left: 8px;">(Reminder and Final Notice are for follow-up emails to customers who haven’t paid yet.)</span>
             </p>
             <p><a href="admin.html" style="color: #008080;">← Back to Admin Dashboard</a></p>
         </div>
@@ -228,7 +229,7 @@
         let quill = null;
         let isHtmlView = false;
         let templateHead = '';
-        // 'invoice' or 'reminder' - which template we're editing
+        // 'invoice', 'reminder', or 'final' - which template we're editing
         let currentTemplateType = 'invoice';
         
         // Initialize Quill editor
@@ -258,9 +259,10 @@
         // Get Firebase doc id and fallback file name for current template type
         function getTemplateConfig() {
             const isReminder = currentTemplateType === 'reminder';
+            const isFinal = currentTemplateType === 'final';
             return {
-                docId: isReminder ? 'reminder_template' : 'invoice_template',
-                fileName: isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html'
+                docId: isFinal ? 'final_notice_template' : (isReminder ? 'reminder_template' : 'invoice_template'),
+                fileName: isFinal ? 'invoice-final-notice-template.html' : (isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html')
             };
         }
         
@@ -477,7 +479,9 @@ ${bodyContent}
                 saveButton.textContent = originalText;
                 saveButton.disabled = false;
                 
-                const templateLabel = currentTemplateType === 'reminder' ? 'Reminder' : 'Invoice';
+                const templateLabel = currentTemplateType === 'reminder'
+                    ? 'Reminder'
+                    : (currentTemplateType === 'final' ? 'Final Notice' : 'Invoice');
                 showMessage(`✅ ${templateLabel} template saved successfully to Firebase! Changes will be used immediately.`, 'success');
                 
                 const statusEl = document.getElementById('editorStatus');
@@ -536,10 +540,13 @@ ${bodyContent}
             initEditor();
             console.log('Editor initialized, quill object:', quill);
             
-            // Read ?template=reminder from URL so "Reminder Template" opens in reminder mode
+            // Read ?template=... from URL so the correct mode opens from Admin
             const params = new URLSearchParams(window.location.search);
-            if (params.get('template') === 'reminder') {
+            const templateParam = params.get('template');
+            if (templateParam === 'reminder') {
                 currentTemplateType = 'reminder';
+            } else if (templateParam === 'final') {
+                currentTemplateType = 'final';
             }
             // Set initial button styles
             document.getElementById('templateTypeInvoice').classList.toggle('btn-primary', currentTemplateType === 'invoice');
@@ -548,6 +555,12 @@ ${bodyContent}
             document.getElementById('templateTypeReminder').classList.toggle('btn-primary', currentTemplateType === 'reminder');
             document.getElementById('templateTypeReminder').classList.toggle('btn-secondary', currentTemplateType !== 'reminder');
             document.getElementById('templateTypeReminder').classList.toggle('active', currentTemplateType === 'reminder');
+            const finalBtn = document.getElementById('templateTypeFinal');
+            if (finalBtn) {
+                finalBtn.classList.toggle('btn-primary', currentTemplateType === 'final');
+                finalBtn.classList.toggle('btn-secondary', currentTemplateType !== 'final');
+                finalBtn.classList.toggle('active', currentTemplateType === 'final');
+            }
             
             // Template type button handlers
             document.getElementById('templateTypeInvoice').addEventListener('click', () => {
@@ -556,6 +569,12 @@ ${bodyContent}
             document.getElementById('templateTypeReminder').addEventListener('click', () => {
                 if (currentTemplateType !== 'reminder') setTemplateType('reminder');
             });
+            const finalTemplateButton = document.getElementById('templateTypeFinal');
+            if (finalTemplateButton) {
+                finalTemplateButton.addEventListener('click', () => {
+                    if (currentTemplateType !== 'final') setTemplateType('final');
+                });
+            }
             
             // Wait a bit longer to ensure Quill is fully ready
             setTimeout(() => {

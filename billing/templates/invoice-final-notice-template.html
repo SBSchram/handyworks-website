@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .greeting {
+            font-weight: normal;
+            margin-bottom: 20px;
+        }
+        .final-notice-intro p {
+            margin: 0 0 12px 0;
+        }
+        .final-notice-box {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .amount-section {
+            background-color: #f8f9fa;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .options {
+            margin: 20px 0;
+        }
+        .payment-option {
+            margin: 15px 0;
+            padding: 10px;
+        }
+        .payment-link {
+            display: inline-block;
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .payment-link:hover {
+            background-color: #c82333;
+        }
+        .check-address {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-line;
+            line-height: 1.2;
+        }
+        .terms {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 0.95em;
+            color: #666;
+        }
+        .closing {
+            margin-top: 30px;
+        }
+        .signature {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .urgent {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="greeting">[Greeting]</div>
+    
+    <div class="final-notice-intro">
+        <p>First, let me thank you for your past purchase and support of HandyWorks. Many of you have been with us for over 25 years. It has been a pleasure to have served you and your staff.</p>
+        <p>In January, we sent you a maintenance invoice covering support for the current year. We also sent a follow up notice in February. But we have not yet received your payment.</p>
+        <p>Enclosed in this mailing is your last maintenance notice. After April 1 we will consider non-payment to be a final decision to end HandyWorks support. There will be no opportunity for you to receive any further upgrades or support. We are sorry to see you go!</p>
+        <p>Of course, if you choose to renew by April 1, we will continue to support you. If you have any questions, please feel free to ask them.</p>
+        <p>You have our best wishes and warmest regards, no matter what your choice.</p>
+    </div>
+    
+    <div class="final-notice-box">
+        <p class="urgent">This is your final HandyWorks maintenance notice for [Year].</p>
+    </div>
+    
+    <div class="amount-section">
+        <p><strong>Your annual HandyWorks maintenance fee for [Year] is <span class="urgent">$[CardAmount]</span>.</strong></p>
+        <p>Please remit payment by April 1 to continue receiving HandyWorks upgrades and support.</p>
+    </div>
+    
+    <div class="options">
+        <p><strong>Payment Options:</strong></p>
+        
+        <div class="payment-option">
+            <p><strong>Pay $[CardAmount] via Stripe:</strong></p>
+            <a href="[PaymentLink]" class="payment-link">[PaymentLinkText]</a>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>Pay $[CheckAmount] by check and save $[CheckDiscount].</strong> You can send a check to:</p>
+            <div class="check-address">[Address]</div>
+        </div>
+        
+        <div class="payment-option">
+            <p><strong>-or-</strong></p>
+            <p>Call us at [SupportPhone] to pay by credit card over the phone.</p>
+        </div>
+    </div>
+    
+    <div class="terms">
+        <p>This invoice covers HandyWork support charges for [Year] (December [Year-1] - November [Year]). This includes all upgrades, all fixes, all modifications, as well as unlimited toll-free technical support, provided your maintenance remains current.</p>
+    </div>
+    
+    <div class="closing">
+        <p>If you have any questions, please don't hesitate to contact us at [SupportPhone] or [SupportEmail].</p>
+    </div>
+    
+    <div class="signature">
+        <p>Sincerely,</p>
+        <p>Steven Schram, Ph.D, D.C., L.Ac.</p>
+    </div>
+</body>
+</html>
+

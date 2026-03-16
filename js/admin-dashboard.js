@@ -39,6 +39,7 @@
     const settingsButton = document.getElementById('settingsButton');
     const invoiceTemplateEditorButton = document.getElementById('invoiceTemplateEditorButton');
     const reminderTemplateEditorButton = document.getElementById('reminderTemplateEditorButton');
+    const finalTemplateEditorButton = document.getElementById('finalTemplateEditorButton');
     
     // Stats elements
     const totalUsersEl = document.getElementById('totalUsers');
@@ -92,6 +93,10 @@
     // Reminder Template Editor handler
     if (reminderTemplateEditorButton) {
         reminderTemplateEditorButton.addEventListener('click', openReminderTemplateEditor);
+    }
+    // Final Notice Template Editor handler
+    if (finalTemplateEditorButton) {
+        finalTemplateEditorButton.addEventListener('click', openFinalTemplateEditor);
     }
     
     // Load users from Firestore
@@ -1357,6 +1362,11 @@
     // Open reminder template editor (opens dedicated editor page in reminder mode)
     function openReminderTemplateEditor() {
         window.open('template-editor.html?template=reminder', '_blank');
+    }
+    
+    // Open final notice template editor (opens dedicated editor page in final-notice mode)
+    function openFinalTemplateEditor() {
+        window.open('template-editor.html?template=final', '_blank');
     }
     
     // Global variables for invoice editor
