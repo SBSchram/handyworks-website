@@ -469,12 +469,14 @@
                     let runningBalance = billed;
                     const dateColor = runningBalance > 0 ? '#dc3545' : '#28a745';
                     
-                    // Action button - only show if there's an amount owed
+        // Action button - only show if there's an amount owed
                     const totalOwed = invoice.amountOwed || 0;
                     let actionButton = '';
                     if (totalOwed > 0) {
-                        // Check if we should show "Generate Reminder" button (mid-January or later)
+            // Check if we should show "Generate Reminder" button (mid-January or later)
                         const shouldShowReminder = isMidJanuaryOrLater();
+            // Final notice is typically sent later in the cycle (mid-March or later)
+            const shouldShowFinalNotice = isLateMarchOrLater();
                         const buttonPadding = isUnpaid ? '0.3rem 0.6rem' : '0.4rem 0.8rem';
                         const buttonFontSize = isUnpaid ? '0.75rem' : '0.85rem';
                         const reminderButton = shouldShowReminder ? `
@@ -484,9 +486,17 @@
                                 Generate Reminder
                             </button>
                         ` : '';
+            const finalNoticeButton = shouldShowFinalNotice ? `
+                <button class="btn" style="padding: ${buttonPadding}; font-size: ${buttonFontSize}; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.4rem;" 
+                        onclick="generateFinalNoticeInvoice('${invoice.id}', '${user.acct_num}', '${invoice.invoice_id}', '${invoice.year}')"
+                        title="Generate final notice email">
+                    Final Notice
+                </button>
+            ` : '';
                         
                         actionButton = `
-                            ${reminderButton}
+                ${reminderButton}
+                ${finalNoticeButton}
                             <button class="btn" style="padding: ${buttonPadding}; font-size: ${buttonFontSize}; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
                                     onclick="recordPaymentForInvoice('${invoice.id}', '${user.acct_num}')">
                                 Record Payment
@@ -1392,6 +1402,22 @@
         return false;
     }
     
+    // Check if current date is mid-March or later (for final notices)
+    function isLateMarchOrLater() {
+        const now = new Date();
+        const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+        const currentDay = now.getDate();
+        
+        // March is month index 2; show from March 15 onward, and all of April+
+        if (currentMonth > 2) { // April or later
+            return true;
+        }
+        if (currentMonth === 2 && currentDay >= 15) { // March 15 or later
+            return true;
+        }
+        return false;
+    }
+    
     // Generate reminder invoice for unpaid invoices
     async function generateReminderInvoice(invoiceId, acctNum, invoiceIdStr, year) {
         try {
@@ -1471,7 +1497,7 @@
             };
             
             // Load reminder template and generate email
-            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink, true); // true = reminder template
+            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink, 'reminder');
             
             // Editor modal and "Copy & Open Gmail" need to/subject; loadInvoiceTemplate only returns { full, head, body }
             const emailData = {
@@ -1489,16 +1515,99 @@
         }
     }
     
-    // Make generateReminderInvoice available globally
+    // Generate final notice email for unpaid invoices (does not create a new invoice record)
+    async function generateFinalNoticeInvoice(invoiceId, acctNum, invoiceIdStr, year) {
+        try {
+            // Get original invoice data
+            const invoiceDoc = await db.collection('handyworks_invoices').doc(invoiceId).get();
+            if (!invoiceDoc.exists) {
+                alert('Invoice not found');
+                return;
+            }
+            const originalInvoice = invoiceDoc.data();
+            
+            // Get user data
+            const userDoc = await db.collection('handyworks_users').doc(acctNum.toString()).get();
+            if (!userDoc.exists) {
+                alert('User not found');
+                return;
+            }
+            const user = userDoc.data();
+            
+            // Payment link URL: prefer stripe_payment_link_url, allow alternate field names
+            const paymentLinkUrl = originalInvoice.stripe_payment_link_url
+                || originalInvoice.payment_link_url
+                || originalInvoice.stripe_payment_link;
+            if (!paymentLinkUrl || typeof paymentLinkUrl !== 'string' || !paymentLinkUrl.startsWith('http')) {
+                alert('This invoice does not have a payment link. Please generate a new invoice first.');
+                return;
+            }
+            
+            // Prepare invoice data for template (use original invoice as the basis)
+            const billingYear = year || originalInvoice.year;
+            const invoiceData = {
+                acct_num: acctNum,
+                customer_name: originalInvoice.customer_name || formatCustomerName(user),
+                customer_email: user.EMAIL || originalInvoice.customer_email || '',
+                clinic_name: user.clinic || originalInvoice.clinic_name || '',
+                year: billingYear,
+                amount: originalInvoice.amount,
+                description: `Annual Maintenance Final Notice ${billingYear}`,
+                invoice_id: originalInvoice.invoice_id || invoiceIdStr
+            };
+            
+            const paymentLink = {
+                url: paymentLinkUrl,
+                id: originalInvoice.stripe_payment_link_id || 'existing'
+            };
+            
+            // Load final-notice template and generate email
+            const templateData = await loadInvoiceTemplate(invoiceData, paymentLink, 'final');
+            
+            const emailData = {
+                ...templateData,
+                to: invoiceData.customer_email,
+                subject: `HandyWorks Maintenance Final Notice - ${invoiceData.year}`
+            };
+            
+            // Open editor with final notice template
+            await openInvoiceEditorModal(invoiceData, paymentLink, emailData);
+        } catch (error) {
+            console.error('Error generating final notice invoice:', error);
+            alert('Error generating final notice invoice: ' + error.message);
+        }
+    }
+    
+    // Make reminder/final generators available globally
     window.generateReminderInvoice = generateReminderInvoice;
+    window.generateFinalNoticeInvoice = generateFinalNoticeInvoice;
     
     // Load invoice template and replace placeholders
-    async function loadInvoiceTemplate(invoiceData, paymentLink, isReminder = false) {
+    // templateType can be: false/'invoice', true/'reminder', or 'final'
+    async function loadInvoiceTemplate(invoiceData, paymentLink, templateType = false) {
         try {
+            // Backwards compatibility: boolean third arg
+            let type;
+            if (typeof templateType === 'boolean') {
+                type = templateType ? 'reminder' : 'invoice';
+            } else {
+                type = templateType || 'invoice';
+            }
+            
             let templateHtml = null;
             let source = 'unknown';
-            const firestoreDocId = isReminder ? 'reminder_template' : 'invoice_template';
-            const templateFileName = isReminder ? 'invoice-reminder-template.html' : 'invoice-template.html';
+            let firestoreDocId;
+            let templateFileName;
+            if (type === 'reminder') {
+                firestoreDocId = 'reminder_template';
+                templateFileName = 'invoice-reminder-template.html';
+            } else if (type === 'final') {
+                firestoreDocId = 'final_notice_template';
+                templateFileName = 'invoice-final-notice-template.html';
+            } else {
+                firestoreDocId = 'invoice_template';
+                templateFileName = 'invoice-template.html';
+            }
             
             // Try Firebase first (reminder_template for reminders, invoice_template for invoices)
             try {
