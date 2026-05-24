@@ -1,87 +1,101 @@
 # handyworks.com email — steve@handyworks.com
 
-**Problem (May 2026):** Mail to `steve@handyworks.com` fails intermittently with `554 5.7.1 Relay access denied` (same class of issue as jetlagpro.com had with Namecheap `eforward*` MX).
+**Status (May 2026):** Namecheap forwarding **`steve` → `sbschram@gmail.com`** works. Confirmed by external send (ProtonMail → `steve@handyworks.com`, `mailed-by: eforward.registrar-servers.com`).
 
-**Current DNS (checked May 2026):**
+**No Cloudflare migration or paid mailbox required** for normal inbound mail.
+
+---
+
+## Free fixes that work (verified)
+
+### 1. Namecheap Email Forwarding (already correct)
+
+- **Alias:** `steve` → **`sbschram@gmail.com`**
+- If the rule exists, **inbound is fine** — no paid Private Email needed.
+
+### 2. Don’t test with Gmail → steve@
+
+`sbschram@gmail.com` → `steve@handyworks.com` → forwards back to the **same Gmail**.
+
+- Often **no bounce and no message** (Gmail suppresses the loop).
+- **Not a broken forward.** Test with **ProtonMail, Outlook, or iCloud** instead.
+
+### 3. Send *as* steve@ from Gmail (free)
+
+Replace any `mail.privateemail.com` entry (blank password = broken).
+
+| Field | Value |
+|-------|--------|
+| SMTP | `smtp.gmail.com` |
+| Port | `587` (TLS) |
+| Username | `sbschram@gmail.com` |
+| Password | Gmail **App Password** (16 characters) |
+
+Same pattern as jetlagpro `info@`.
+
+### 4. Relax handyworks DMARC (free DNS change)
+
+Handyworks currently has **`p=quarantine`**, which can **hide or drop** mail from senders with weak auth (e.g. `info@jetlagpro.com` sent via free Gmail — `dmarc=fail` in headers).
+
+**Namecheap** → **handyworks.com** → **Advanced DNS** → edit **`_dmarc`** TXT:
+
+```text
+v=DMARC1; p=none; rua=mailto:your-email@gmail.com
+```
+
+(`p=none` matches jetlagpro — monitor only, do not quarantine failing mail.)
+
+Wait 15–60 minutes, then retest **info@** → **steve@** and check **Spam**.
+
+### 5. Mail from info@jetlagpro.com (sender-side, free)
+
+On **jetlagpro.com** (Cloudflare DNS), SPF must include Google:
+
+```text
+v=spf1 include:_spf.mx.cloudflare.net include:_spf.google.com ~all
+```
+
+This helps delivery but **does not** fix DMARC alignment for free Gmail “Send mail as” (`Return-Path` stays `@gmail.com`). See `jetlagpro-website/docs/EMAIL_SETUP.md`.
+
+**Practical send options to steve@ (all free):**
+
+- Send from **ProtonMail / Outlook** to `steve@` — works.
+- Send from **sbschram@gmail.com** to `steve@` — use only if you accept loop risk; prefer external sender.
+- Send from **info@** after handyworks DMARC → `p=none`; check Spam.
+
+---
+
+## Current DNS (reference)
 
 | Record | Value |
 |--------|--------|
-| NS | `dns1.registrar-servers.com`, `dns2.registrar-servers.com` (Namecheap) |
-| MX | `eforward1`–`eforward5.registrar-servers.com` (Namecheap forwarding) |
-| SPF | `v=spf1 include:spf.efwd.registrar-servers.com include:_spf.google.com include:spf.smtp2go.com ~all` |
-| DMARC | `v=DMARC1; p=quarantine; pct=100; ...` at `_dmarc.handyworks.com` |
+| NS | Namecheap (`dns1/2.registrar-servers.com`) |
+| MX | `eforward*.registrar-servers.com` |
+| SPF | includes eforward, Google, smtp2go |
+| DMARC | `_dmarc.handyworks.com` — consider **`p=none`** (see §4) |
 
-**Site hosting:** GitHub Pages (A records in Namecheap) — do not change A/CNAME unless you plan a full DNS migration.
-
----
-
-## Fix A — Namecheap Email Forwarding (do this first, ~10 min)
-
-DNS stays on Namecheap. You only fix the **forwarding alias**.
-
-1. [Namecheap](https://www.namecheap.com) → **Domain List** → **handyworks.com** → **Manage**
-2. Open **Email Forwarding** (or **Private Email** → if you only use forwarding, use **Email Forwarding**, not a paid mailbox you never configured)
-3. **Add or edit** a rule:
-   - **Alias:** `steve` (→ `steve@handyworks.com`)
-   - **Forward to:** `sbschram@gmail.com` (or the inbox you actually read)
-4. **Remove** duplicate or old rules for `steve@` pointing elsewhere
-5. **Save** — wait 5–15 minutes
-
-### Disable conflicting Private Email SMTP (if unused)
-
-If you previously set Gmail **Send mail as** for `steve@` with `mail.privateemail.com` and **no password**, that path is wrong unless you pay for Namecheap Private Email mailboxes.
-
-- Either buy/configure Private Email for `steve@`, **or**
-- Use Fix B below for send-as via Gmail
-
-### Test inbound
-
-From `info@jetlagpro.com` (or `sbschram@gmail.com`), send **3 messages** to `steve@handyworks.com`.
-
-- All should arrive at the **forward destination** Gmail
-- No `554 relay access denied` bounce
-
-Check **Spam** if missing.
+**Site:** GitHub Pages — keep existing **A** / **CNAME** records if you only change DMARC.
 
 ---
 
-## Fix B — Send *as* steve@ from Gmail (optional)
+## Optional: Cloudflare Email Routing (not required)
 
-Same pattern as jetlagpro `info@`:
+Only if Namecheap forwarding **bounces** (554) for **external** senders after 24h.
 
-1. Google Account → **App passwords** → create one for Mail
-2. Gmail → **Settings** → **Accounts** → **Send mail as** → add `steve@handyworks.com`
-3. SMTP: `smtp.gmail.com`, port **587**, TLS
-4. **Username:** `sbschram@gmail.com`
-5. **Password:** 16-character **App Password** (not Private Email, not blank)
-6. Verify via email that arrives at the forward destination
-
-Remove any old entry that used `mail.privateemail.com`.
+Moves DNS to Cloudflare + Email Routing (same as jetlagpro). Bigger change; **not needed** if ProtonMail → steve@ already delivers.
 
 ---
 
-## Fix C — Move mail to Cloudflare Email Routing (optional, more reliable)
+## Troubleshooting
 
-Use only if Fix A still bounces after 24 hours.
-
-1. Add **handyworks.com** to [Cloudflare](https://dash.cloudflare.com) (free plan)
-2. At Namecheap, change nameservers to Cloudflare’s pair
-3. In Cloudflare DNS, recreate **GitHub Pages** records from this README:
-   - **A** @ → `185.199.108.153`, `.109.153`, `.110.153`, `.111.153`
-   - **CNAME** `www` → `sbschram.github.io`
-4. **Email Routing** → enable → remove `eforward*` MX → add routing rule `steve@` → `sbschram@gmail.com`
-5. Turn off Namecheap Email Forwarding for `steve@` to avoid double handling
-
-Website and email then match the jetlagpro.com setup.
-
----
-
-## DMARC note
-
-`p=quarantine` is stricter than jetlagpro (`p=none`). Legitimate mail can land in **spam** even when delivery succeeds.
-
-- After Fix A works, if mail from `info@jetlagpro.com` lands in spam, mark **Not spam**
-- Do not change DMARC to `reject` without a full SPF/DKIM plan
+| Symptom | Free fix |
+|---------|----------|
+| ProtonMail → steve@ **works** | Forward is fine — stop here |
+| Gmail → steve@, nothing arrives | Expected loop — use external test (§2) |
+| info@ → steve@, nothing / spam | DMARC **p=none** on handyworks (§4); check Spam |
+| info@ auth warning at ProtonMail | Normal for Gmail send-as — see jetlagpro doc |
+| Send-as steve@ fails | Gmail SMTP + App Password (§3), not Private Email |
+| 554 relay access denied (external) | Re-check Namecheap forward; then consider Cloudflare |
 
 ---
 
@@ -89,19 +103,6 @@ Website and email then match the jetlagpro.com setup.
 
 | Address | Role |
 |---------|------|
-| `steve@handyworks.com` | HandyWorks site, billing pages, contact |
-| `info@jetlagpro.com` | JetLagPro (Cloudflare → Gmail) |
-| `sbschram@gmail.com` | App Review / personal backup |
-
----
-
-## Troubleshooting
-
-| Symptom | Action |
-|---------|--------|
-| 554 relay access denied | Re-check Namecheap forwarding; remove stale `eforward` conflicts; try Fix C |
-| No bounce but no mail | Check spam; confirm forward target is `sbschram@gmail.com` |
-| **ProtonMail → steve@ works; info@ → steve@ does not** | Fix **jetlagpro.com** SPF: add `include:_spf.google.com` in Cloudflare DNS (see jetlagpro `docs/EMAIL_SETUP.md` Step 5) |
-| Gmail → steve@ no mail, no bounce | Normal — Gmail suppresses send-to-self via forward; test with ProtonMail |
-| Send-as fails | Use Gmail SMTP + App Password, not `mail.privateemail.com` |
-| Website down after DNS change | Restore Namecheap NS or fix Cloudflare A/CNAME records |
+| `steve@handyworks.com` | HandyWorks site / contact (forward → Gmail) |
+| `info@jetlagpro.com` | JetLagPro |
+| `sbschram@gmail.com` | App Review / personal |
