@@ -20,18 +20,48 @@
 - Often **no bounce and no message** (Gmail suppresses the loop).
 - **Not a broken forward.** Test with **ProtonMail, Outlook, or iCloud** instead.
 
-### 3. Send *as* steve@ from Gmail (free)
+### 3. Send *as* steve@ from Gmail via **SMTP2GO** (actual setup — free tier)
 
-Replace any `mail.privateemail.com` entry (blank password = broken).
+**Dashboard:** [SMTP2GO](https://app-us.smtp2go.com/dashboard/main/)  
+**Gmail guide:** [Setting up Gmail with SMTP2GO](https://www.smtp2go.com/setupguide/gmail/)
+
+This is how **`steve@handyworks.com`** is sent from Gmail — **not** `smtp.gmail.com` and **not** `mail.privateemail.com`.
+
+#### Why SMTP2GO (not Gmail SMTP)
+
+| Approach | Auth for `@handyworks.com` |
+|----------|----------------------------|
+| `smtp.gmail.com` + App Password | Weak — `Return-Path` stays `@gmail.com`, DMARC often fails |
+| **SMTP2GO** | Strong — mail sent through servers authorized in handyworks **SPF** (`include:spf.smtp2go.com`, added Dec 2025) |
+
+See `DNS_CONFIGURATION.md` — SPF was updated specifically because SMTP2GO sends were failing DMARC.
+
+#### SMTP2GO account (one-time)
+
+1. Log in at [app-us.smtp2go.com](https://app-us.smtp2go.com/dashboard/main/)
+2. **Sending → Verified Senders** — verify **`handyworks.com`** as a sender domain (SMTP2GO sets SPF/DKIM DNS; your SPF already includes `spf.smtp2go.com`)
+3. **Sending → SMTP Users** — create an SMTP user; note **username** and **password**
+
+#### Gmail → Send mail as
+
+**Settings → Accounts → Send mail as** → add or edit **`steve@handyworks.com`**:
 
 | Field | Value |
 |-------|--------|
-| SMTP | `smtp.gmail.com` |
-| Port | `587` (TLS) |
-| Username | `sbschram@gmail.com` |
-| Password | Gmail **App Password** (16 characters) |
+| Send through | **SMTP servers** (your domain — *not* Gmail) |
+| SMTP server | `mail.smtp2go.com` (US accounts may also use `mail-us.smtp2go.com`) |
+| Port | `587` (or `2525`) |
+| Secured connection | **TLS** |
+| Username | **SMTP2GO SMTP user** (from dashboard — *not* `sbschram@gmail.com`) |
+| Password | **SMTP2GO SMTP password** (*not* Gmail App Password) |
 
-Same pattern as jetlagpro `info@`.
+Remove any old entry using `mail.privateemail.com` (Namecheap Private Email — blank password = broken).
+
+Verify via the email Gmail sends to `steve@` (forwards to Gmail via Namecheap).
+
+#### Fallback: Gmail SMTP only
+
+If SMTP2GO is unavailable, use `smtp.gmail.com` + `sbschram@gmail.com` + App Password (same as jetlagpro `info@`). Expect weaker authentication — see jetlagpro `docs/EMAIL_SETUP.md`.
 
 ### 4. Relax handyworks DMARC (free DNS change)
 

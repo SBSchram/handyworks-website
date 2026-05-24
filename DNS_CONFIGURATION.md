@@ -60,9 +60,20 @@ dig +short TXT _dmarc.handyworks.com
 
 ## Email Services
 
-1. **Namecheap Email Forwarding** - `spf.efwd.registrar-servers.com`
-2. **Google Workspace/Gmail** - `_spf.google.com`
-3. **SMTP2GO** - `spf.smtp2go.com` (added Dec 12, 2025)
+1. **Namecheap Email Forwarding** - `spf.efwd.registrar-servers.com` (inbound `steve@` → Gmail)
+2. **Google Workspace/Gmail** - `_spf.google.com` (optional Gmail SMTP send-as fallback)
+3. **SMTP2GO** - `spf.smtp2go.com` (added Dec 12, 2025) — **primary outbound** for `steve@handyworks.com` from Gmail ([setup guide](https://www.smtp2go.com/setupguide/gmail/), dashboard [app-us.smtp2go.com](https://app-us.smtp2go.com/dashboard/main/))
+
+### Gmail “Send mail as” for steve@ (SMTP2GO)
+
+| Field | Value |
+|-------|--------|
+| SMTP server | `mail.smtp2go.com` |
+| Port | `587` (TLS) or `2525` |
+| Username / password | From SMTP2GO **Sending → SMTP Users** |
+| From address | `steve@handyworks.com` |
+
+Do **not** use `mail.privateemail.com` unless you have a paid Namecheap Private Email mailbox.
 
 ## Last Updated
 
