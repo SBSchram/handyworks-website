@@ -15,7 +15,7 @@ Static HTML website hosted on GitHub Pages. Migrated from WordPress in January 2
 - **Software Downloads**: Upgrade files and installation packages in `public/` directory
 - **Desktop Software Integration**: `LatestVersion.txt` for automatic update checking
 - **SEO Optimized**: Meta tags, sitemap.xml, robots.txt
-- **Email Forwarding**: steve@handyworks.com via Namecheap
+- **Email Forwarding**: steve@handyworks.com via Namecheap (see `docs/EMAIL_SETUP.md` if mail bounces)
 
 ## Directory Structure
 
@@ -60,7 +60,7 @@ Located in `scripts/`:
 - **Hosting**: GitHub Pages
 - **DNS**: Namecheap
 - **SSL**: Automatic via GitHub Pages
-- **Email**: Namecheap email forwarding
+- **Email**: Namecheap email forwarding → `sbschram@gmail.com` (setup: `docs/EMAIL_SETUP.md`)
 - **Contact Form**: Formspree
 - **Analytics**: None (privacy-focused)
 
