@@ -101,5 +101,7 @@ Website and email then match the jetlagpro.com setup.
 |---------|--------|
 | 554 relay access denied | Re-check Namecheap forwarding; remove stale `eforward` conflicts; try Fix C |
 | No bounce but no mail | Check spam; confirm forward target is `sbschram@gmail.com` |
+| **ProtonMail → steve@ works; info@ → steve@ does not** | Fix **jetlagpro.com** SPF: add `include:_spf.google.com` in Cloudflare DNS (see jetlagpro `docs/EMAIL_SETUP.md` Step 5) |
+| Gmail → steve@ no mail, no bounce | Normal — Gmail suppresses send-to-self via forward; test with ProtonMail |
 | Send-as fails | Use Gmail SMTP + App Password, not `mail.privateemail.com` |
 | Website down after DNS change | Restore Namecheap NS or fix Cloudflare A/CNAME records |
