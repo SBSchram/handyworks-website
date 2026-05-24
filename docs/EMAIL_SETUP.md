@@ -124,7 +124,7 @@ Moves DNS to Cloudflare + Email Routing (same as jetlagpro). Bigger change; **no
 | Gmail → steve@, nothing arrives | Expected loop — use external test (§2) |
 | info@ → steve@, nothing / spam | DMARC **p=none** on handyworks (§4); check Spam |
 | info@ auth warning at ProtonMail | Normal for Gmail send-as — see jetlagpro doc |
-| Send-as steve@ fails | Gmail SMTP + App Password (§3), not Private Email |
+| Send-as steve@ fails | **SMTP2GO** (§3): `mail.smtp2go.com` + SMTP Users creds — not Private Email or Gmail SMTP |
 | 554 relay access denied (external) | Re-check Namecheap forward; then consider Cloudflare |
 
 ---
