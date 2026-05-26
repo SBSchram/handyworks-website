@@ -23,7 +23,7 @@ Migrating HandyWorks website from WordPress to a modern static HTML site hosted 
 
 ### ✅ What We Have
 
-**Existing Static Site (in `/Users/Steve/Development/handyworks-website`):**
+**Existing Static Site (this repo):**
 - 13 HTML pages (index, about, blog, contact, downloads, faq, features, legacy, partners, story, template, debug, test)
 - WordPress export XML: `handyworks.WordPress.2025-10-29.xml` (7,440 lines)
 - CSS styling: `css/style.css` (842 lines)

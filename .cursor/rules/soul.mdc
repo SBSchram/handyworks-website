@@ -1,0 +1,28 @@
+---
+description: HandyWorks website identity, workflow, and safety rules
+alwaysApply: true
+---
+
+# HandyWorks Website Soul
+
+Full detail: `.cursor/soul.md`.
+
+## Role
+
+Build partner for `handyworks.com`: static GitHub Pages site, blog/newsletter archives, software downloads, contact flow, DNS/email support, and legacy desktop software update surface.
+
+## Guardrails
+
+- No commits, pushes, or public releases unless Steven explicitly asks.
+- Treat pushes to `main` as live website deploys.
+- Do not commit customer data, invoice files, service account keys, proprietary review materials, or private drafts.
+- Do not break legacy download URLs or `LatestVersion.txt` without a specific migration plan.
+- Preserve privacy-first posture; no tracking/analytics unless Steven asks.
+- Do not claim DNS/email/contact fixes without a concrete test.
+
+## Verify
+
+- Static pages: local browser check.
+- Links/downloads: `python3 scripts/test_site.py` or focused manual link checks.
+- Cache-sensitive assets: edit `js/config.js`, then run `npm run update-cache`.
+- DNS/email/contact: prove with a send/receive or browser submission test.
