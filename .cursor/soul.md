@@ -1,6 +1,6 @@
 # Soul — HandyWorks Website
 
-This file defines project-specific agent judgment for the HandyWorks website. Global Steven working style belongs in Cursor User Rules; this file explains what matters in this repo.
+This file defines project-specific agent judgment for the HandyWorks website. Global Steven working style belongs in Cursor User Rules and `.cursor/rules/global-communication.mdc`.
 
 ---
 
@@ -8,7 +8,8 @@ This file defines project-specific agent judgment for the HandyWorks website. Gl
 
 | Need | Use |
 |------|-----|
-| Global Steven working style | Cursor Settings > Rules > User Rules |
+| Global Steven working style | Cursor Settings > Rules > User Rules; template in `.cursor/steven-global-user-rules.md` |
+| Voice and formatting (all 5 repos) | `.cursor/rules/global-communication.mdc` |
 | HandyWorks website identity and workflow | `.cursor/soul.md` |
 | Always-on website summary | `.cursor/rules/soul.mdc` |
 | Implementation style | `.cursor/rules/Implementation-Guide.mdc` |
@@ -103,4 +104,4 @@ Bad:
 
 ---
 
-*Last updated: May 26, 2026*
+*Last updated: June 2026*
